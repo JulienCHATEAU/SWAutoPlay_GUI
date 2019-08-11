@@ -1,11 +1,17 @@
 package main
 
 import (
+	"strings"
 	"fmt"
 	"log"
-	"os/exec"
-
+	"SWAutoPlay_GUI/widgets"
+	"SWAutoPlay_GUI/adb"
 	"github.com/gotk3/gotk3/gtk"
+	goadb "github.com/zach-klippenstein/goadb"
+)
+
+const (
+	MAX_DEVICE_COUNT = 10
 )
 
 type BoolProperty struct {
@@ -56,6 +62,7 @@ var dungeons = []Dungeon{
 func main() {
 
 	gtk.Init(nil)
+	quit := make(chan struct{})
 
 	win, err := gtk.WindowNew(gtk.WINDOW_TOPLEVEL)
 	if err != nil {
@@ -63,6 +70,7 @@ func main() {
 	}
 	win.SetDefaultSize(700, 550)
 	win.SetTitle("SWAP")
+	win.SetPosition(gtk.WIN_POS_CENTER)
 	win.Connect("destroy", func() {
 		gtk.MainQuit()
 	})
@@ -114,15 +122,41 @@ func main() {
 	windowGrid.Add(runPosGrid)
 
 	//run button
-	btn, err := gtk.ButtonNewWithLabel("Run !")
+	btn, err := gtk.ButtonNewWithLabel("Run")
 	if err != nil {
 		log.Fatal("Unable to create button:", err)
 	}
+	btn.SetMarginTop(10)
 	btn.SetMarginBottom(10)
 	btn.SetMarginEnd(10)
 	btn.SetMarginStart(10)
-	btn.Connect("clicked", run)
+	btn.Connect("clicked", func() {
+		devices, _ := initDevices()
+		deviceWindow, err := widgets.CreateDeviceWindow(devices, quit)
+		win.Connect("destroy", func() {
+			deviceWindow.Close()
+		})
+		if err != nil {
+			log.Print("Can't create device deviceWindow")
+		}
+		deviceWindow.ShowAll()
+		gtk.Main()
+		run()
+	})
 	windowGrid.Add(btn)
+
+	btnStop, err := gtk.ButtonNewWithLabel("Stop")
+	if err != nil {
+		log.Fatal("Unable to create button:", err)
+	}
+	btnStop.SetMarginTop(10)
+	btnStop.SetMarginBottom(10)
+	btnStop.SetMarginEnd(10)
+	btnStop.SetMarginStart(10)
+	btnStop.Connect("clicked", func() {
+		close(quit)
+	})
+	windowGrid.Add(btnStop)
 
 	win.Add(windowGrid)
 	win.ShowAll()
@@ -130,20 +164,46 @@ func main() {
 	gtk.Main()
 }
 
-func run() {
-	baseCommand := "adb shell am instrument -w -r com.example.swautoplay.test/androidx.test.runner.AndroidJUnitRunner"
-	var params = []func() (string, string, error){getDungeonName, getAverageDungeonTime, getRunCount, getStartStage, getDifficulty, getRefill, getRunPosition}
-	for _, fun := range params {
-		name, value, err := fun()
-		if err == nil {
-			baseCommand += " -e " + name + " " + value
+
+func initDevices() ([]widgets.Device, error) {
+	out := adb.ExecAdbCommand("devices")
+	outSplit := strings.Split(out, "\n")
+	devices := make([]widgets.Device, len(outSplit)-3)
+	fmt.Printf("OUT : %q\n", outSplit)
+	for i := 1; outSplit[i] != "" && outSplit[i] != "\r"; i++ {
+		deviceSplit := strings.Split(outSplit[i], "\t")
+		devices[i-1].Serial = deviceSplit[0]
+		if devices[i-1].IsWifi() {
+			devices[i-1].Mode = "WiFi"
+		} else {
+			devices[i-1].Mode = "USB"
 		}
+		adb, err := goadb.New()
+		if err != nil {
+			fmt.Printf("Error with adm new : %s", err)
+		}
+		devices[i-1].Manufacturer, err = adb.Device(goadb.DeviceWithSerial(devices[i-1].Serial)).RunCommand("getprop", "ro.product.manufacturer")
+		devices[i-1].Model, err = adb.Device(goadb.DeviceWithSerial(devices[i-1].Serial)).RunCommand("getprop", "ro.product.model")
+		devices[i-1].Manufacturer = strings.Trim(devices[i-1].Manufacturer, "\n")
+		devices[i-1].Model = strings.Trim(devices[i-1].Model, "\n")
 	}
-	cmd := exec.Command(baseCommand)
-	out, err := cmd.Output()
-	if err != nil {
-		log.Print("Error with adm command %s" + string(out))
-	}
+	return devices, nil
+}
+
+func run() {
+	// baseCommand := "adb shell am instrument -w -r com.example.swautoplay.test/androidx.test.runner.AndroidJUnitRunner"
+	// var params = []func() (string, string, error){getDungeonName, getAverageDungeonTime, getRunCount, getStartStage, getDifficulty, getRefill, getRunPosition}
+	// for _, fun := range params {
+	// 	name, value, err := fun()
+	// 	if err == nil {
+	// 		baseCommand += " -e " + name + " " + value
+	// 	}
+	// }
+	// cmd := exec.Command(baseCommand)
+	// out, err := cmd.Output()
+	// if err != nil {
+	// 	log.Print("Error with adm command %s" + string(out))
+	// }
 }
 
 func getDungeonName() (string, string, error) {
@@ -201,6 +261,8 @@ func (dungeon *Dungeon) createDungeonContent() (*gtk.Grid, error) {
 		return nil, err
 	}
 	contentGrid.SetOrientation(gtk.ORIENTATION_VERTICAL)
+	contentGrid.SetMarginTop(10)
+  contentGrid.SetMarginBottom(10)
 
 	dungeonTitle, err := gtk.LabelNew("")
 	if err != nil {
@@ -239,7 +301,6 @@ func (dungeon *Dungeon) createDungeonContent() (*gtk.Grid, error) {
 		if err != nil {
 			log.Fatal("Unable to create refillGrid:", err)
 		}
-		refillGrid.SetMarginTop(10)
 		contentGrid.Add(refillGrid)
 	}
 	if dungeon.ConcernedParam[3] {
@@ -247,7 +308,6 @@ func (dungeon *Dungeon) createDungeonContent() (*gtk.Grid, error) {
 		if err != nil {
 			log.Fatal("Unable to create difficultyGrid:", err)
 		}
-		difficultyGrid.SetMarginTop(10)
 		contentGrid.Add(difficultyGrid)
 	}
 	if dungeon.ConcernedParam[4] {

@@ -23,11 +23,6 @@ type Dungeon struct {
 	ConcernedParam [5]bool //AverageDungeonTime | RunCount | Refill | Difficulty | StartStage
 }
 
-var adt *gtk.Entry
-var runCount *gtk.Entry
-var startStage *gtk.Entry
-var dungeonsTabs *gtk.Notebook
-
 var normal = BoolProperty{"Normal", true, "Normal"}
 var hard = BoolProperty{"Hard", false, "Hard"}
 var hell = BoolProperty{"Hell", false, "Hell"}
@@ -67,6 +62,13 @@ func main() {
 		gtk.MainQuit()
 	})
 
+	dungeonsTabs, _ := gtk.NotebookNew()
+
+	dunLength := len(dungeons)
+	var adts = make([]*gtk.Entry, dunLength)
+	var runCounts = make([]*gtk.Entry, dunLength)
+	var startStages = make([]*gtk.Entry, dunLength)
+
 	//Window Grid
 	windowGrid, err := gtk.GridNew()
 	if err != nil {
@@ -85,23 +87,22 @@ func main() {
 	windowGrid.Add(lab)
 
 	//Tabs
-	dungeonsTabs, err := gtk.NotebookNew()
 	if err != nil {
 		log.Fatal("Unable to create notebook:", err)
 	}
 	dungeonsTabs.SetHExpand(true)
 	dungeonsTabs.SetVExpand(true)
-	for _, dungeon := range dungeons {
-		dungeonsTabsChild, err := dungeon.createDungeonContent()
-		if err != nil {
-			log.Fatal("Unable to create dungeonsTabsChild:", err)
-		}
+
+	for count, dungeon := range dungeons {
+		contentGrid, _ := dungeon.createDungeonContent(count, adts, runCounts, startStages)
+
 		dungeonsTabsTab, err := gtk.LabelNew(dungeon.Name)
 		if err != nil {
 			log.Fatal("Unable to create dungeonsTabsTab:", err)
 		}
-		dungeonsTabs.AppendPage(dungeonsTabsChild, dungeonsTabsTab)
+		dungeonsTabs.AppendPage(contentGrid, dungeonsTabsTab)
 	}
+
 	dungeonsTabs.SetMarginEnd(10)
 	dungeonsTabs.SetMarginStart(10)
 	windowGrid.Add(dungeonsTabs)
@@ -121,7 +122,9 @@ func main() {
 	btn.SetMarginBottom(10)
 	btn.SetMarginEnd(10)
 	btn.SetMarginStart(10)
-	btn.Connect("clicked", run)
+	btn.Connect("clicked", func() {
+		run(dungeonsTabs, adts, runCounts, startStages)
+	})
 	windowGrid.Add(btn)
 
 	win.Add(windowGrid)
@@ -130,110 +133,120 @@ func main() {
 	gtk.Main()
 }
 
-func run() {
+func run(dungeonsTabs *gtk.Notebook, adt []*gtk.Entry, runCount []*gtk.Entry, startStage []*gtk.Entry) { //AverageDungeonTime | RunCount | Refill | Difficulty | StartStage
 	baseCommand := "adb shell am instrument -w -r com.example.swautoplay.test/androidx.test.runner.AndroidJUnitRunner"
-	var params = []func() (string, string, error){getDungeonName, getAverageDungeonTime, getRunCount, getStartStage, getDifficulty, getRefill, getRunPosition}
-	for _, fun := range params {
-		name, value, err := fun()
-		if err == nil {
-			baseCommand += " -e " + name + " " + value
+	var params = []func(int, *gtk.Entry, *gtk.Entry, *gtk.Entry) (string, string, error){getAverageDungeonTime, getRunCount, getRefill, getDifficulty, getStartStage, getRunPosition, getDungeonName}
+	index := dungeonsTabs.GetCurrentPage()
+	log.Print(index)
+	dungeon := dungeons[index]
+	for i, fun := range params {
+		if i >= len(dungeons) {
+			name, value, err := fun(index, adt[index], runCount[index], startStage[index])
+			if err == nil {
+				baseCommand += " -e " + name + " " + value
+			} else {
+				log.Print("The parameter '" + name + "' is not filled")
+			}
+		} else {
+			if dungeon.ConcernedParam[i] {
+				name, value, err := fun(index, adt[index], runCount[index], startStage[index])
+				if err == nil {
+					baseCommand += " -e " + name + " " + value
+				} else {
+					log.Print("The parameter '" + name + "' is not filled")
+				}
+			}
 		}
 	}
 	cmd := exec.Command(baseCommand)
 	out, err := cmd.Output()
 	if err != nil {
-		log.Print("Error with adm command %s" + string(out))
+		log.Print("Error with adm command " + string(out))
 	}
 }
 
-func getDungeonName() (string, string, error) {
-	return "DungeonName", dungeons[dungeonsTabs.GetCurrentPage()].Name, nil
+func getDungeonName(index int, adt *gtk.Entry, runCount *gtk.Entry, startStage *gtk.Entry) (string, string, error) {
+	return "DungeonName", dungeons[index].Name, nil
 }
 
 func getEntryText(entry *gtk.Entry, name string) (string, string, error) {
 	value, err := entry.GetText()
 	if value == "" {
-		return "", "", fmt.Errorf("Empty string")
+		return name, "", fmt.Errorf("Empty string")
 	}
 	if err != nil {
-		return "", "", err
+		return name, "", err
 	}
 	return name, value, nil
 }
 
-func getAverageDungeonTime() (string, string, error) {
+func getAverageDungeonTime(index int, adt *gtk.Entry, runCount *gtk.Entry, startStage *gtk.Entry) (string, string, error) {
 	return getEntryText(adt, "AverageDungeonTime")
 }
 
-func getRunCount() (string, string, error) {
+func getRunCount(index int, adt *gtk.Entry, runCount *gtk.Entry, startStage *gtk.Entry) (string, string, error) {
 	return getEntryText(runCount, "RunCount")
 }
 
-func getStartStage() (string, string, error) {
+func getStartStage(index int, adt *gtk.Entry, runCount *gtk.Entry, startStage *gtk.Entry) (string, string, error) {
 	return getEntryText(startStage, "StartStage")
 }
 
-func getBoolParams(params []*BoolProperty) (string, string, error) {
+func getBoolParams(name string, params []*BoolProperty) (string, string, error) {
 	for _, param := range params {
 		if param.Value {
-			return "Refill", param.StringValue, nil
+			return name, param.StringValue, nil
 		}
 	}
 	return "", "", fmt.Errorf("bool param error")
 }
 
-func getDifficulty() (string, string, error) {
-	return getBoolParams(difficultyProps)
+func getDifficulty(index int, adt *gtk.Entry, runCount *gtk.Entry, startStage *gtk.Entry) (string, string, error) {
+	return getBoolParams("Difficulty", difficultyProps)
 }
 
-func getRefill() (string, string, error) {
-	return getBoolParams(refillProps)
+func getRefill(index int, adt *gtk.Entry, runCount *gtk.Entry, startStage *gtk.Entry) (string, string, error) {
+	return getBoolParams("Refill", refillProps)
 }
 
-func getRunPosition() (string, string, error) {
-	return getBoolParams(props)
+func getRunPosition(index int, adt *gtk.Entry, runCount *gtk.Entry, startStage *gtk.Entry) (string, string, error) {
+	return getBoolParams("RunPosition", props)
 }
 
-func (dungeon *Dungeon) createDungeonContent() (*gtk.Grid, error) {
-	var err error
+func (dungeon *Dungeon) createDungeonContent(count int, adt []*gtk.Entry, runCount []*gtk.Entry, startStage []*gtk.Entry) (*gtk.Grid, error) {
 	contentGrid, err := gtk.GridNew()
-	if err != nil {
-		return nil, err
-	}
 	contentGrid.SetOrientation(gtk.ORIENTATION_VERTICAL)
-
+	if err != nil {
+		log.Fatal("Unable to create dungeonsTabsChild:", err)
+	}
 	dungeonTitle, err := gtk.LabelNew("")
 	if err != nil {
 		log.Fatal("Unable to create dungeonTitle:", err)
 	}
-	dungeonTitle.SetMarkup("<span size=\"large\" face=\"serif\"><b>" + dungeon.Name + " run parameters</b></span>")
+	dungeonTitle.SetMarkup("<span size=\"large\" face=\"serif\"><b>Giant run parameters</b></span>")
 	dungeonTitle.SetMarginBottom(15)
 	dungeonTitle.SetMarginTop(10)
 	dungeonTitle.SetHExpand(true)
 	contentGrid.Add(dungeonTitle)
 
 	if dungeon.ConcernedParam[0] {
-		adt, err = gtk.EntryNew()
-		if err != nil {
-			log.Fatal("Unable to create adt:", err)
-		}
-		adtGrid, err := createGridEntry("Average dungeon time (in seconds) : ", 3, adt)
+		adt[count], _ = gtk.EntryNew()
+		adtGrid, err := createGridEntry("Average dungeon time (in seconds) : ", 3, adt[count])
 		if err != nil {
 			log.Fatal("Unable to create adtGrid:", err)
 		}
 		contentGrid.Add(adtGrid)
 	}
+
 	if dungeon.ConcernedParam[1] {
-		runCount, err = gtk.EntryNew()
-		if err != nil {
-			log.Fatal("Unable to create runCount:", err)
-		}
-		runCountGrid, err := createGridEntry("Run count : ", 2, runCount)
+		runCount[count], _ = gtk.EntryNew()
+		runCountGrid, err := createGridEntry("Run count : ", 2, runCount[count])
 		if err != nil {
 			log.Fatal("Unable to create runCountGrid:", err)
 		}
 		contentGrid.Add(runCountGrid)
 	}
+
 	if dungeon.ConcernedParam[2] {
 		refillGrid, err := createGridBoolBox("Refill energy from : ", refillProps)
 		if err != nil {
@@ -242,6 +255,7 @@ func (dungeon *Dungeon) createDungeonContent() (*gtk.Grid, error) {
 		refillGrid.SetMarginTop(10)
 		contentGrid.Add(refillGrid)
 	}
+
 	if dungeon.ConcernedParam[3] {
 		difficultyGrid, err := createGridBoolBox(dungeon.Name+" difficulty : ", difficultyProps)
 		if err != nil {
@@ -250,24 +264,14 @@ func (dungeon *Dungeon) createDungeonContent() (*gtk.Grid, error) {
 		difficultyGrid.SetMarginTop(10)
 		contentGrid.Add(difficultyGrid)
 	}
+
 	if dungeon.ConcernedParam[4] {
-		startStage, err = gtk.EntryNew()
+		startStage[count], _ = gtk.EntryNew()
+		startStageGrid, err := createGridEntry("Start dungeon to stage n° : ", 3, startStage[count])
 		if err != nil {
-			log.Fatal("Unable to create startStage:", err)
+			log.Fatal("Unable to create startStageGrid:", err)
 		}
-		if dungeon.Name == "ToA" {
-			startStageGrid, err := createGridEntry("Start ToA to stage n° : ", 3, startStage)
-			if err != nil {
-				log.Fatal("Unable to create startStageGrid:", err)
-			}
-			contentGrid.Add(startStageGrid)
-		} else if dungeon.Name == "Scenario" {
-			startStageGrid, err := createGridEntry("Scenario dungeon level : ", 1, startStage)
-			if err != nil {
-				log.Fatal("Unable to create startStageGrid:", err)
-			}
-			contentGrid.Add(startStageGrid)
-		}
+		contentGrid.Add(startStageGrid)
 	}
 
 	return contentGrid, nil

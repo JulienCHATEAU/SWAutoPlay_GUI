@@ -1,0 +1,43 @@
+#Testrunner configuration file
+platform: mobile # The platform you are testing on [mobile]
+resultPath: ./greenspector/measures # The path where you want the Testrunner to save the tests results. defaults to ./greenspector/measures
+#componentsPath: /home/user/.greenspector # Uncomment if you want to specify the path where components used by the Testrunner are installed
+
+# target bloc, uncomment and edit the appropriate one for your needs
+
+#target: # target bloc for android usb mode
+#  connection: usb # The way you connect to the device [usb | wifi]
+#  serial: SERIALNUMBER # The Mobile deviceID, can be retrieved with 'adb devices' command
+#  battery: # Automatically unplug the usb through the Yepkit
+#    enabled: false
+#    boardSerialNumber: YKU30018 # Serial number of the Yepkit card
+#    port: 1 # Port of the phone
+#  paths:
+#    adb: /usr/bin/adb # The path to adb in your Android SDK installation
+#    aapt: /usr/bin/aapt # The path to aapt in your Android SDK installation
+#  phantomas: # For module http_request in job.yml file
+#    path: /path/to/phantomas # The path to the phantomas executable if not already in your path
+#  hardware:
+#    address: /dev/ttyACM0
+
+#target: # target bloc for android wifi mode
+#  connection: wifi # The way you connect to the device [usb | wifi]
+#  ip: 192.168.10.25 # The Mobile's Wifi IP address
+#  port: 5555 # The port used by adb to connect to the device. Defaults to 5555
+#  paths:
+#    adb: /usr/bin/adb # The path to adb in your Android SDK installation
+#    aapt: /usr/bin/aapt # The path to aapt in your Android SDK installation
+#  phantomas: # For module http_request in job.yml file
+#    path: /path/to/phantomas # The path to the phantomas executable if not already in your path
+#  hardware:
+#    address: /dev/ttyACM0
+
+greenspector:
+  server: https://my-instance.greenspector.com # URL of your Greenspector instance
+  token: PRIVATE_TOKEN # Your private token registered on Greenspector
+#proxy: # Uncomment and edit if you are behind a proxy
+#  protocol: http
+#  hostname: proxy.hostname
+#  port: 3129
+#  user: proxy.user
+#  password: proxy.password

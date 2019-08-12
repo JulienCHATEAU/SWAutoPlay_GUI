@@ -1,12 +1,26 @@
 package main
 
 import (
+	"SWAutoPlay_GUI/adb"
+	"SWAutoPlay_GUI/widgets"
 	"fmt"
 	"log"
-	"os/exec"
+	"strings"
 
 	"github.com/gotk3/gotk3/gtk"
+	goadb "github.com/zach-klippenstein/goadb"
 )
+
+const (
+	MAX_DEVICE_COUNT = 10
+)
+
+type AppWidgets struct {
+	Adts          []*gtk.Entry
+	RunCounts     []*gtk.Entry
+	StartStages   []*gtk.Entry
+	ScenarioNames []*gtk.ComboBoxText
+}
 
 type BoolProperty struct {
 	Name        string
@@ -39,6 +53,7 @@ var noRefill = BoolProperty{"Don't refill", false, "Off"}
 var props = []*BoolProperty{&home, &island, &toa}
 var refillProps = []*BoolProperty{&chest, &sp, &crystals, &noRefill}
 var difficultyProps = []*BoolProperty{&normal, &hard, &hell}
+var scenarioDungeons = []string{"Garen", "Siz", "Kabir", "Ragon", "Telain", "Hydeni", "Tamor", "Vrofagus", "Faimon", "Aiden", "Ferun", "Runar", "Charuka"}
 
 var dungeons = []Dungeon{
 	Dungeon{"Giant", [5]bool{true, true, true, false, false}},
@@ -58,6 +73,7 @@ func main() {
 	}
 	win.SetDefaultSize(700, 550)
 	win.SetTitle("SWAP")
+	win.SetPosition(gtk.WIN_POS_CENTER)
 	win.Connect("destroy", func() {
 		gtk.MainQuit()
 	})
@@ -65,9 +81,11 @@ func main() {
 	dungeonsTabs, _ := gtk.NotebookNew()
 
 	dunLength := len(dungeons)
-	var adts = make([]*gtk.Entry, dunLength)
-	var runCounts = make([]*gtk.Entry, dunLength)
-	var startStages = make([]*gtk.Entry, dunLength)
+	var appWidgets AppWidgets
+	appWidgets.Adts = make([]*gtk.Entry, dunLength)
+	appWidgets.RunCounts = make([]*gtk.Entry, dunLength)
+	appWidgets.StartStages = make([]*gtk.Entry, dunLength)
+	appWidgets.ScenarioNames = make([]*gtk.ComboBoxText, 1)
 
 	//Window Grid
 	windowGrid, err := gtk.GridNew()
@@ -94,7 +112,7 @@ func main() {
 	dungeonsTabs.SetVExpand(true)
 
 	for count, dungeon := range dungeons {
-		contentGrid, _ := dungeon.createDungeonContent(count, adts, runCounts, startStages)
+		contentGrid, _ := dungeon.createDungeonContent(count, appWidgets)
 
 		dungeonsTabsTab, err := gtk.LabelNew(dungeon.Name)
 		if err != nil {
@@ -114,18 +132,44 @@ func main() {
 	}
 	windowGrid.Add(runPosGrid)
 
-	//run button
-	btn, err := gtk.ButtonNewWithLabel("Run !")
+	btnRun, err := gtk.ButtonNewWithLabel("Run")
 	if err != nil {
 		log.Fatal("Unable to create button:", err)
 	}
-	btn.SetMarginBottom(10)
-	btn.SetMarginEnd(10)
-	btn.SetMarginStart(10)
-	btn.Connect("clicked", func() {
-		run(dungeonsTabs, adts, runCounts, startStages)
+	btnStop, err := gtk.ButtonNewWithLabel("Exit")
+	if err != nil {
+		log.Fatal("Unable to create button:", err)
+	}
+	btnRun.SetMarginTop(10)
+	btnRun.SetMarginBottom(10)
+	btnRun.SetMarginEnd(10)
+	btnRun.SetMarginStart(10)
+	btnStop.SetMarginBottom(10)
+	btnStop.SetMarginEnd(10)
+	btnStop.SetMarginStart(10)
+
+	btnRun.Connect("clicked", func() {
+		devices, _ := initDevices()
+		runCommand := runCommand(dungeonsTabs, appWidgets)
+		deviceWindow, err := widgets.CreateDeviceWindow(devices, runCommand, btnStop, btnRun)
+		win.Connect("destroy", func() {
+			deviceWindow.Close()
+		})
+		if err != nil {
+			log.Print("Can't create device deviceWindow")
+		}
+		deviceWindow.ShowAll()
+		gtk.Main()
 	})
-	windowGrid.Add(btn)
+	btnStop.Connect("clicked", func() {
+		btnRun.SetVisible(true)
+		btnStop.SetLabel("Exit")
+		gtk.MainQuit()
+		// gtk.Main()
+	})
+	btnStop.SetVisible(false)
+	windowGrid.Add(btnRun)
+	windowGrid.Add(btnStop)
 
 	win.Add(windowGrid)
 	win.ShowAll()
@@ -133,39 +177,64 @@ func main() {
 	gtk.Main()
 }
 
-func run(dungeonsTabs *gtk.Notebook, adt []*gtk.Entry, runCount []*gtk.Entry, startStage []*gtk.Entry) { //AverageDungeonTime | RunCount | Refill | Difficulty | StartStage
-	baseCommand := "adb shell am instrument -w -r com.example.swautoplay.test/androidx.test.runner.AndroidJUnitRunner"
-	var params = []func(int, *gtk.Entry, *gtk.Entry, *gtk.Entry) (string, string, error){getAverageDungeonTime, getRunCount, getRefill, getDifficulty, getStartStage, getRunPosition, getDungeonName}
+func runCommand(dungeonsTabs *gtk.Notebook, appWidgets AppWidgets) []string { //AverageDungeonTime | RunCount | Refill | Difficulty | StartStage
+	swautoplayPackage := "com.example.swautoplay.test/androidx.test.runner.AndroidJUnitRunner"
+	args := []string{"instrument", "-w", "-r"}
+	var params = []func(int, AppWidgets) (string, string, error){getAverageDungeonTime, getRunCount, getRefill, getDifficulty, getStartStage, getRunPosition, getDungeonName}
 	index := dungeonsTabs.GetCurrentPage()
-	log.Print(index)
 	dungeon := dungeons[index]
 	for i, fun := range params {
 		if i >= len(dungeons) {
-			name, value, err := fun(index, adt[index], runCount[index], startStage[index])
+			name, value, err := fun(index, appWidgets)
 			if err == nil {
-				baseCommand += " -e " + name + " " + value
+				args = append(args, "-e", name, value)
 			} else {
 				log.Print("The parameter '" + name + "' is not filled")
 			}
 		} else {
 			if dungeon.ConcernedParam[i] {
-				name, value, err := fun(index, adt[index], runCount[index], startStage[index])
+				name, value, err := fun(index, appWidgets)
 				if err == nil {
-					baseCommand += " -e " + name + " " + value
+					args = append(args, "-e", name, value)
 				} else {
 					log.Print("The parameter '" + name + "' is not filled")
 				}
 			}
 		}
 	}
-	cmd := exec.Command(baseCommand)
-	out, err := cmd.Output()
-	if err != nil {
-		log.Print("Error with adm command " + string(out))
-	}
+	args = append(args, swautoplayPackage)
+	return args
 }
 
-func getDungeonName(index int, adt *gtk.Entry, runCount *gtk.Entry, startStage *gtk.Entry) (string, string, error) {
+func initDevices() ([]widgets.Device, error) {
+	out := adb.ExecAdbCommand("devices")
+	outSplit := strings.Split(out, "\n")
+	devices := make([]widgets.Device, len(outSplit)-3)
+	for i := 1; outSplit[i] != "" && outSplit[i] != "\r"; i++ {
+		deviceSplit := strings.Split(outSplit[i], "\t")
+		devices[i-1].Serial = deviceSplit[0]
+		if devices[i-1].IsWifi() {
+			devices[i-1].Mode = "WiFi"
+		} else {
+			devices[i-1].Mode = "USB"
+		}
+		adb, err := goadb.New()
+		if err != nil {
+			return nil, err
+		}
+		devices[i-1].Manufacturer, err = adb.Device(goadb.DeviceWithSerial(devices[i-1].Serial)).RunCommand("getprop", "ro.product.manufacturer")
+		devices[i-1].Model, err = adb.Device(goadb.DeviceWithSerial(devices[i-1].Serial)).RunCommand("getprop", "ro.product.model")
+		devices[i-1].Manufacturer = strings.Trim(devices[i-1].Manufacturer, "\n")
+		devices[i-1].Model = strings.Trim(devices[i-1].Model, "\n")
+	}
+	return devices, nil
+}
+
+func getDungeonName(index int, appWidgets AppWidgets) (string, string, error) {
+	if dungeons[index].Name == "Scenario" {
+		scenarioIndex := appWidgets.ScenarioNames[0].GetActive()
+		return "DungeonName", scenarioDungeons[scenarioIndex], nil
+	}
 	return "DungeonName", dungeons[index].Name, nil
 }
 
@@ -180,16 +249,16 @@ func getEntryText(entry *gtk.Entry, name string) (string, string, error) {
 	return name, value, nil
 }
 
-func getAverageDungeonTime(index int, adt *gtk.Entry, runCount *gtk.Entry, startStage *gtk.Entry) (string, string, error) {
-	return getEntryText(adt, "AverageDungeonTime")
+func getAverageDungeonTime(index int, appWidgets AppWidgets) (string, string, error) {
+	return getEntryText(appWidgets.Adts[index], "AverageDungeonTime")
 }
 
-func getRunCount(index int, adt *gtk.Entry, runCount *gtk.Entry, startStage *gtk.Entry) (string, string, error) {
-	return getEntryText(runCount, "RunCount")
+func getRunCount(index int, appWidgets AppWidgets) (string, string, error) {
+	return getEntryText(appWidgets.RunCounts[index], "RunCount")
 }
 
-func getStartStage(index int, adt *gtk.Entry, runCount *gtk.Entry, startStage *gtk.Entry) (string, string, error) {
-	return getEntryText(startStage, "StartStage")
+func getStartStage(index int, appWidgets AppWidgets) (string, string, error) {
+	return getEntryText(appWidgets.StartStages[index], "StartStage")
 }
 
 func getBoolParams(name string, params []*BoolProperty) (string, string, error) {
@@ -201,37 +270,40 @@ func getBoolParams(name string, params []*BoolProperty) (string, string, error) 
 	return "", "", fmt.Errorf("bool param error")
 }
 
-func getDifficulty(index int, adt *gtk.Entry, runCount *gtk.Entry, startStage *gtk.Entry) (string, string, error) {
+func getDifficulty(index int, appWidgets AppWidgets) (string, string, error) {
 	return getBoolParams("Difficulty", difficultyProps)
 }
 
-func getRefill(index int, adt *gtk.Entry, runCount *gtk.Entry, startStage *gtk.Entry) (string, string, error) {
+func getRefill(index int, appWidgets AppWidgets) (string, string, error) {
 	return getBoolParams("Refill", refillProps)
 }
 
-func getRunPosition(index int, adt *gtk.Entry, runCount *gtk.Entry, startStage *gtk.Entry) (string, string, error) {
-	return getBoolParams("RunPosition", props)
+func getRunPosition(index int, appWidgets AppWidgets) (string, string, error) {
+	return getBoolParams("StartTestPosition", props)
 }
 
-func (dungeon *Dungeon) createDungeonContent(count int, adt []*gtk.Entry, runCount []*gtk.Entry, startStage []*gtk.Entry) (*gtk.Grid, error) {
+func (dungeon *Dungeon) createDungeonContent(count int, appWidgets AppWidgets) (*gtk.Grid, error) {
 	contentGrid, err := gtk.GridNew()
 	contentGrid.SetOrientation(gtk.ORIENTATION_VERTICAL)
 	if err != nil {
 		log.Fatal("Unable to create dungeonsTabsChild:", err)
 	}
+	contentGrid.SetMarginTop(10)
+	contentGrid.SetMarginBottom(10)
+
 	dungeonTitle, err := gtk.LabelNew("")
 	if err != nil {
 		log.Fatal("Unable to create dungeonTitle:", err)
 	}
-	dungeonTitle.SetMarkup("<span size=\"large\" face=\"serif\"><b>Giant run parameters</b></span>")
+	dungeonTitle.SetMarkup("<span size=\"large\" face=\"serif\"><b>" + dungeon.Name + " run parameters</b></span>")
 	dungeonTitle.SetMarginBottom(15)
 	dungeonTitle.SetMarginTop(10)
 	dungeonTitle.SetHExpand(true)
 	contentGrid.Add(dungeonTitle)
 
 	if dungeon.ConcernedParam[0] {
-		adt[count], _ = gtk.EntryNew()
-		adtGrid, err := createGridEntry("Average dungeon time (in seconds) : ", 3, adt[count])
+		appWidgets.Adts[count], _ = gtk.EntryNew()
+		adtGrid, err := createGridEntry("Average dungeon time (in seconds) : ", 3, appWidgets.Adts[count])
 		if err != nil {
 			log.Fatal("Unable to create adtGrid:", err)
 		}
@@ -239,8 +311,8 @@ func (dungeon *Dungeon) createDungeonContent(count int, adt []*gtk.Entry, runCou
 	}
 
 	if dungeon.ConcernedParam[1] {
-		runCount[count], _ = gtk.EntryNew()
-		runCountGrid, err := createGridEntry("Run count : ", 2, runCount[count])
+		appWidgets.RunCounts[count], _ = gtk.EntryNew()
+		runCountGrid, err := createGridEntry("Run count : ", 2, appWidgets.RunCounts[count])
 		if err != nil {
 			log.Fatal("Unable to create runCountGrid:", err)
 		}
@@ -252,8 +324,29 @@ func (dungeon *Dungeon) createDungeonContent(count int, adt []*gtk.Entry, runCou
 		if err != nil {
 			log.Fatal("Unable to create refillGrid:", err)
 		}
-		refillGrid.SetMarginTop(10)
 		contentGrid.Add(refillGrid)
+	}
+
+	if dungeon.Name == "Scenario" {
+		appWidgets.ScenarioNames[0], _ = gtk.ComboBoxTextNew()
+		for _, name := range scenarioDungeons {
+			appWidgets.ScenarioNames[0].AppendText(name)
+		}
+		appWidgets.ScenarioNames[0].SetActive(0)
+
+		boxGrid, err := gtk.GridNew()
+		if err != nil {
+			return nil, err
+		}
+		boxGrid.SetOrientation(gtk.ORIENTATION_HORIZONTAL)
+		boxGrid.SetMarginTop(10)
+		entryLabel, err := createSubTitleLabel("Scenario dungeon : ")
+		if err != nil {
+			return nil, err
+		}
+		boxGrid.Add(entryLabel)
+		boxGrid.Add(appWidgets.ScenarioNames[0])
+		contentGrid.Add(boxGrid)
 	}
 
 	if dungeon.ConcernedParam[3] {
@@ -261,13 +354,12 @@ func (dungeon *Dungeon) createDungeonContent(count int, adt []*gtk.Entry, runCou
 		if err != nil {
 			log.Fatal("Unable to create difficultyGrid:", err)
 		}
-		difficultyGrid.SetMarginTop(10)
 		contentGrid.Add(difficultyGrid)
 	}
 
 	if dungeon.ConcernedParam[4] {
-		startStage[count], _ = gtk.EntryNew()
-		startStageGrid, err := createGridEntry("Start dungeon to stage n° : ", 3, startStage[count])
+		appWidgets.StartStages[count], _ = gtk.EntryNew()
+		startStageGrid, err := createGridEntry("Start dungeon to stage n° : ", 3, appWidgets.StartStages[count])
 		if err != nil {
 			log.Fatal("Unable to create startStageGrid:", err)
 		}

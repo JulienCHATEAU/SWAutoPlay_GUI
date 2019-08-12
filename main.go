@@ -34,7 +34,7 @@ func (param *BoolProperty) toString() string {
 
 type Dungeon struct {
 	Name           string
-	ConcernedParam [5]bool //AverageDungeonTime | RunCount | Refill | Difficulty | StartStage
+	ConcernedParam [6]bool //AverageDungeonTime | RunCount | Refill | Difficulty | StartStage | HoH
 }
 
 var normal = BoolProperty{"Normal", true, "Normal"}
@@ -50,17 +50,21 @@ var sp = BoolProperty{"Social Point", false, "SocialPoint"}
 var crystals = BoolProperty{"Crystals", false, "Crystals"}
 var noRefill = BoolProperty{"Don't refill", false, "Off"}
 
+var hohYes = BoolProperty{"Yes", false, "true"}
+var hohNo = BoolProperty{"No", true, "false"}
+
 var props = []*BoolProperty{&home, &island, &toa}
 var refillProps = []*BoolProperty{&chest, &sp, &crystals, &noRefill}
 var difficultyProps = []*BoolProperty{&normal, &hard, &hell}
+var hohProps = []*BoolProperty{&hohYes, &hohNo}
 var scenarioDungeons = []string{"Garen", "Siz", "Kabir", "Ragon", "Telain", "Hydeni", "Tamor", "Vrofagus", "Faimon", "Aiden", "Ferun", "Runar", "Charuka"}
 
 var dungeons = []Dungeon{
-	Dungeon{"Giant", [5]bool{true, true, true, false, false}},
-	Dungeon{"Drake", [5]bool{true, true, true, false, false}},
-	Dungeon{"Necropolis", [5]bool{true, true, true, false, false}},
-	Dungeon{"ToA", [5]bool{true, true, true, true, true}},
-	Dungeon{"Scenario", [5]bool{true, true, true, true, true}},
+	Dungeon{"Giant", [6]bool{true, true, true, false, false, true}},
+	Dungeon{"Drake", [6]bool{true, true, true, false, false, true}},
+	Dungeon{"Necropolis", [6]bool{true, true, true, false, false, true}},
+	Dungeon{"ToA", [6]bool{true, true, true, true, true, false}},
+	Dungeon{"Scenario", [6]bool{true, true, true, true, true, false}},
 }
 
 func main() {
@@ -180,11 +184,11 @@ func main() {
 func runCommand(dungeonsTabs *gtk.Notebook, appWidgets AppWidgets) []string { //AverageDungeonTime | RunCount | Refill | Difficulty | StartStage
 	swautoplayPackage := "com.example.swautoplay.test/androidx.test.runner.AndroidJUnitRunner"
 	args := []string{"instrument", "-w", "-r"}
-	var params = []func(int, AppWidgets) (string, string, error){getAverageDungeonTime, getRunCount, getRefill, getDifficulty, getStartStage, getRunPosition, getDungeonName}
+	var params = []func(int, AppWidgets) (string, string, error){getAverageDungeonTime, getRunCount, getRefill, getDifficulty, getStartStage, getHoH, getRunPosition, getDungeonName}
 	index := dungeonsTabs.GetCurrentPage()
 	dungeon := dungeons[index]
 	for i, fun := range params {
-		if i >= len(dungeons) {
+		if i >= len(dungeon.ConcernedParam) {
 			name, value, err := fun(index, appWidgets)
 			if err == nil {
 				args = append(args, "-e", name, value)
@@ -268,6 +272,10 @@ func getBoolParams(name string, params []*BoolProperty) (string, string, error) 
 		}
 	}
 	return "", "", fmt.Errorf("bool param error")
+}
+
+func getHoH(index int, appWidgets AppWidgets) (string, string, error) {
+	return getBoolParams("HoH", hohProps)
 }
 
 func getDifficulty(index int, appWidgets AppWidgets) (string, string, error) {
@@ -364,6 +372,14 @@ func (dungeon *Dungeon) createDungeonContent(count int, appWidgets AppWidgets) (
 			log.Fatal("Unable to create startStageGrid:", err)
 		}
 		contentGrid.Add(startStageGrid)
+	}
+
+	if dungeon.ConcernedParam[5] {
+		hohGrid, err := createGridBoolBox("Is there any opened HoH : ", hohProps)
+		if err != nil {
+			log.Fatal("Unable to create hohGrid:", err)
+		}
+		contentGrid.Add(hohGrid)
 	}
 
 	return contentGrid, nil

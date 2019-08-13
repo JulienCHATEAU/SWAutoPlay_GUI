@@ -134,6 +134,7 @@ func createDungeonsFromSavedFile() []Dungeon {
 }
 
 func createDungeon(name string, concernedParams []bool, adt string, runCount string, startStage string, scenarioDungeon int, radioSelectedIndex []int) Dungeon {
+	hell := &BoolProperty{"Hell", false, "Hell"}
 	dungeon := Dungeon{
 		name,
 		[6]bool{true, true, true, concernedParams[0], concernedParams[1], concernedParams[2]},
@@ -151,7 +152,6 @@ func createDungeon(name string, concernedParams []bool, adt string, runCount str
 			[]*BoolProperty{
 				&BoolProperty{"Normal", false, "Normal"},
 				&BoolProperty{"Hard", false, "Hard"},
-				&BoolProperty{"Hell", false, "Hell"},
 			},
 			[]*BoolProperty{
 				&BoolProperty{"Yes", false, "true"},
@@ -161,6 +161,9 @@ func createDungeon(name string, concernedParams []bool, adt string, runCount str
 	}
 	for index, prop := range dungeon.BoolProps {
 		prop[radioSelectedIndex[index]].Value = true
+	}
+	if name != "ToA" {
+		dungeon.BoolProps[1][2] = hell
 	}
 	return dungeon
 }

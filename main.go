@@ -4,14 +4,12 @@ import (
 	"SWAutoPlay_GUI/adb"
 	"SWAutoPlay_GUI/widgets"
 	"fmt"
+	"io/ioutil"
 	"log"
+	"strconv"
 	"strings"
 	"github.com/gotk3/gotk3/gtk"
 	goadb "github.com/zach-klippenstein/goadb"
-)
-
-const (
-	MAX_DEVICE_COUNT = 10
 )
 
 type AppWidgets struct {
@@ -32,55 +30,144 @@ func (param *BoolProperty) toString() string {
 }
 
 type Dungeon struct {
-	Name           string
-	ConcernedParam [6]bool //AverageDungeonTime | RunCount | Refill | Difficulty | StartStage | HoH
+	Name            string
+	ConcernedParam  [6]bool //AverageDungeonTime | RunCount | Refill | Difficulty | StartStage | HoH
+	Adt             string
+	RunCount        string
+	StartStage      string
+	ScenarioDungeon int
+	BoolProps       [][]*BoolProperty // Refill | Difficulty | HoH
 }
 
-var normal = BoolProperty{"Normal", true, "Normal"}
-var hard = BoolProperty{"Hard", false, "Hard"}
-var hell = BoolProperty{"Hell", false, "Hell"}
-
-var home = BoolProperty{"Phone home page", true, "Home"}
-var island = BoolProperty{"Island", false, "Island"}
-var toa = BoolProperty{"ToA stages page", false, "ToA"}
-
-var chest = BoolProperty{"Chest", true, "Chest"}
-var sp = BoolProperty{"Social Point", false, "SocialPoint"}
-var crystals = BoolProperty{"Crystals", false, "Crystals"}
-var noRefill = BoolProperty{"Don't refill", false, "Off"}
-
-var hohYes = BoolProperty{"Yes", false, "true"}
-var hohNo = BoolProperty{"No", true, "false"}
-
-var props = []*BoolProperty{&home, &island, &toa}
-var refillProps = []*BoolProperty{&chest, &sp, &crystals, &noRefill}
-var difficultyProps = []*BoolProperty{&normal, &hard, &hell}
-var toaDifficultyProps = []*BoolProperty{&normal, &hard}
-var hohProps = []*BoolProperty{&hohYes, &hohNo}
 var scenarioDungeons = []string{"Garen", "Siz", "Kabir", "Ragon", "Telain", "Hydeni", "Tamor", "Vrofagus", "Faimon", "Aiden", "Ferun", "Runar", "Charuka"}
+var startTestPosProps = []*BoolProperty{
+	&BoolProperty{"Phone home page", true, "Home"},
+	&BoolProperty{"Island", false, "Island"},
+	&BoolProperty{"ToA stages page", false, "ToA"},
+}
 
-var dungeons = []Dungeon{
-	Dungeon{"Giant", [6]bool{true, true, true, false, false, true}},
-	Dungeon{"Drake", [6]bool{true, true, true, false, false, true}},
-	Dungeon{"Necropolis", [6]bool{true, true, true, false, false, true}},
-	Dungeon{"ToA", [6]bool{true, true, true, true, true, false}},
-	Dungeon{"Scenario", [6]bool{true, true, true, true, true, false}},
+// var dungeons = []Dungeon{
+// 	createDungeon("Giant", []bool{false, false, true}, "-1", "-1", "-1", 0, []int{3, 0, 1}),
+// 	createDungeon("Drake", []bool{false, false, true}, "-1", "-1", "-1", 0, []int{3, 0, 1}),
+// 	createDungeon("Necropolis", []bool{false, false, true}, "-1", "-1", "-1", 0, []int{3, 0, 1}),
+// 	createDungeon("ToA", []bool{true, true, false}, "-1", "-1", "-1", 0, []int{3, 0, 1}),
+// 	createDungeon("Scenario", []bool{true, true, false}, "-1", "-1", "-1", 5, []int{3, 0, 1}),
+// }
+
+var dungeons = createDungeonsFromSavedFile()
+
+func (d *Dungeon) getActiveBoolProps() []string {
+	boolPropsIndexes := make([]string, 3)
+	for index, boolprop := range d.BoolProps {
+		for i, prop := range boolprop {
+			if prop.Value == true {
+				boolPropsIndexes[index] = strconv.Itoa(i)
+				break
+			}
+		}
+	}
+	return boolPropsIndexes
+}
+
+func (d *Dungeon) toSaveString(adt string, runCount string, startStage string, scenarioDungeon string) string {
+	boolPropsIndexes := d.getActiveBoolProps()
+	res := d.Name + "|" +
+		strconv.FormatBool(d.ConcernedParam[3]) + "|" +
+		strconv.FormatBool(d.ConcernedParam[4]) + "|" +
+		strconv.FormatBool(d.ConcernedParam[5]) + "|" +
+		adt + "|" +
+		runCount + "|" +
+		startStage + "|" +
+		scenarioDungeon + "|" +
+		boolPropsIndexes[0] + "|" +
+		boolPropsIndexes[1] + "|" +
+		boolPropsIndexes[2] + "\n"
+	return res
+}
+
+func createDungeonsFromSavedFile() []Dungeon {
+	dungeons := make([]Dungeon, 5)
+	content, err := ioutil.ReadFile("data/lastParams")
+	if err != nil {
+		log.Fatal(err)
+	}
+	strContent := string(content)
+	splitDungeon := strings.Split(strContent, "\n")
+	for index, dungeon := range splitDungeon {
+		if dungeon != "" {
+			splitDungeonData := strings.Split(dungeon, "|")
+			concernedParams := make([]bool, 3)
+			for i := 1; i < 4; i++ {
+				cp, err := strconv.ParseBool(splitDungeonData[i])
+				if err != nil {
+					if i == 1 {
+						cp = true
+					} else {
+						cp = false
+					}
+				}
+				concernedParams[i-1] = cp
+			}
+			scenarioDungeon, err := strconv.Atoi(splitDungeonData[7])
+			if err != nil {
+				scenarioDungeon = 0
+			}
+			radioSelectedIndex := make([]int, 3)
+			for i := 8; i < len(splitDungeonData); i++ {
+				rsi, err := strconv.Atoi(splitDungeonData[i])
+				if err != nil {
+					rsi = 0
+				}
+				radioSelectedIndex[i-8] = rsi
+			}
+			dungeons[index] = createDungeon(splitDungeonData[0],
+				concernedParams,
+				splitDungeonData[4],
+				splitDungeonData[5],
+				splitDungeonData[6],
+				scenarioDungeon,
+				radioSelectedIndex,
+			)
+		}
+	}
+	return dungeons
+}
+
+func createDungeon(name string, concernedParams []bool, adt string, runCount string, startStage string, scenarioDungeon int, radioSelectedIndex []int) Dungeon {
+	dungeon := Dungeon{
+		name,
+		[6]bool{true, true, true, concernedParams[0], concernedParams[1], concernedParams[2]},
+		adt,
+		runCount,
+		startStage,
+		scenarioDungeon,
+		[][]*BoolProperty{
+			[]*BoolProperty{
+				&BoolProperty{"Chest", false, "Chest"},
+				&BoolProperty{"Social Point", false, "SocialPoint"},
+				&BoolProperty{"Crystals", false, "Crystals"},
+				&BoolProperty{"Don't refill", false, "Off"},
+			},
+			[]*BoolProperty{
+				&BoolProperty{"Normal", false, "Normal"},
+				&BoolProperty{"Hard", false, "Hard"},
+				&BoolProperty{"Hell", false, "Hell"},
+			},
+			[]*BoolProperty{
+				&BoolProperty{"Yes", false, "true"},
+				&BoolProperty{"No", false, "false"},
+			},
+		},
+	}
+	for index, prop := range dungeon.BoolProps {
+		prop[radioSelectedIndex[index]].Value = true
+	}
+	return dungeon
 }
 
 func main() {
 
 	gtk.Init(nil)
-
-	win, err := gtk.WindowNew(gtk.WINDOW_TOPLEVEL)
-	if err != nil {
-		log.Fatal("Unable to create window:", err)
-	}
-	win.SetDefaultSize(700, 550)
-	win.SetTitle("SWAP")
-	win.SetPosition(gtk.WIN_POS_CENTER)
-	win.Connect("destroy", func() {
-		gtk.MainQuit()
-	})
 
 	dungeonsTabs, _ := gtk.NotebookNew()
 
@@ -90,6 +177,18 @@ func main() {
 	appWidgets.RunCounts = make([]*gtk.Entry, dunLength)
 	appWidgets.StartStages = make([]*gtk.Entry, dunLength)
 	appWidgets.ScenarioNames = make([]*gtk.ComboBoxText, 1)
+
+	win, err := gtk.WindowNew(gtk.WINDOW_TOPLEVEL)
+	if err != nil {
+		log.Fatal("Unable to create window:", err)
+	}
+	win.SetDefaultSize(700, 550)
+	win.SetTitle("SWAP")
+	win.SetPosition(gtk.WIN_POS_CENTER)
+	win.Connect("destroy", func() {
+		saveParams(appWidgets)
+		gtk.MainQuit()
+	})
 
 	//Window Grid
 	windowGrid, err := gtk.GridNew()
@@ -130,7 +229,7 @@ func main() {
 	windowGrid.Add(dungeonsTabs)
 
 	//Run position grid
-	runPosGrid, err := createGridBoolBox("Start this run from : ", props)
+	runPosGrid, err := createGridBoolBox("Start this run from : ", startTestPosProps)
 	if err != nil {
 		log.Fatal("createGridBoolBox() failed :", err)
 	}
@@ -166,6 +265,7 @@ func main() {
 		gtk.Main()
 	})
 	btnStop.Connect("clicked", func() {
+		saveParams(appWidgets)
 		gtk.MainQuit()
 		// gtk.Main()
 	})
@@ -272,24 +372,38 @@ func getBoolParams(name string, params []*BoolProperty) (string, string, error) 
 	return "", "", fmt.Errorf("bool param error")
 }
 
-func getHoH(index int, appWidgets AppWidgets) (string, string, error) {
-	return getBoolParams("HoH", hohProps)
+func getRefill(index int, appWidgets AppWidgets) (string, string, error) {
+	return getBoolParams("Refill", dungeons[index].BoolProps[0])
 }
 
 func getDifficulty(index int, appWidgets AppWidgets) (string, string, error) {
-	if index == 3 {//ToA page
-		return getBoolParams("Difficulty", toaDifficultyProps)
-	} else {//other page
-		return getBoolParams("Difficulty", difficultyProps)
-	}
+	return getBoolParams("Difficulty", dungeons[index].BoolProps[1])
 }
 
-func getRefill(index int, appWidgets AppWidgets) (string, string, error) {
-	return getBoolParams("Refill", refillProps)
+func getHoH(index int, appWidgets AppWidgets) (string, string, error) {
+	return getBoolParams("HoH", dungeons[index].BoolProps[2])
 }
 
 func getRunPosition(index int, appWidgets AppWidgets) (string, string, error) {
-	return getBoolParams("StartTestPosition", props)
+	return getBoolParams("StartTestPosition", startTestPosProps)
+}
+
+func saveParams(appWidgets AppWidgets) {
+	content := ""
+	for i, dungeon := range dungeons {
+		startStage := ""
+		adt, _ := appWidgets.Adts[i].GetText()
+		runCount, _ := appWidgets.RunCounts[i].GetText()
+		if dungeon.ConcernedParam[4] {
+			startStage, _ = appWidgets.StartStages[i].GetText()
+		}
+		scenarioDungeon := strconv.Itoa(appWidgets.ScenarioNames[0].GetActive())
+		content += dungeon.toSaveString(adt, runCount, startStage, scenarioDungeon)
+	}
+	err := ioutil.WriteFile("data/lastParams", []byte(content), 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func (dungeon *Dungeon) createDungeonContent(count int, appWidgets AppWidgets) (*gtk.Grid, error) {
@@ -313,6 +427,7 @@ func (dungeon *Dungeon) createDungeonContent(count int, appWidgets AppWidgets) (
 
 	if dungeon.ConcernedParam[0] {
 		appWidgets.Adts[count], _ = gtk.EntryNew()
+		appWidgets.Adts[count].SetText(dungeon.Adt)
 		adtGrid, err := createGridEntry("Average dungeon time (in seconds) : ", 3, appWidgets.Adts[count])
 		if err != nil {
 			log.Fatal("Unable to create adtGrid:", err)
@@ -322,6 +437,7 @@ func (dungeon *Dungeon) createDungeonContent(count int, appWidgets AppWidgets) (
 
 	if dungeon.ConcernedParam[1] {
 		appWidgets.RunCounts[count], _ = gtk.EntryNew()
+		appWidgets.RunCounts[count].SetText(dungeon.RunCount)
 		runCountGrid, err := createGridEntry("Run count : ", 2, appWidgets.RunCounts[count])
 		if err != nil {
 			log.Fatal("Unable to create runCountGrid:", err)
@@ -330,7 +446,7 @@ func (dungeon *Dungeon) createDungeonContent(count int, appWidgets AppWidgets) (
 	}
 
 	if dungeon.ConcernedParam[2] {
-		refillGrid, err := createGridBoolBox("Refill energy from : ", refillProps)
+		refillGrid, err := createGridBoolBox("Refill energy from : ", dungeon.BoolProps[0])
 		if err != nil {
 			log.Fatal("Unable to create refillGrid:", err)
 		}
@@ -342,7 +458,7 @@ func (dungeon *Dungeon) createDungeonContent(count int, appWidgets AppWidgets) (
 		for _, name := range scenarioDungeons {
 			appWidgets.ScenarioNames[0].AppendText(name)
 		}
-		appWidgets.ScenarioNames[0].SetActive(0)
+		appWidgets.ScenarioNames[0].SetActive(dungeon.ScenarioDungeon)
 
 		boxGrid, err := gtk.GridNew()
 		if err != nil {
@@ -360,11 +476,7 @@ func (dungeon *Dungeon) createDungeonContent(count int, appWidgets AppWidgets) (
 	}
 
 	if dungeon.ConcernedParam[3] {
-		if dungeon.Name == "ToA" {
-			difficultyGrid, err := createGridBoolBox(dungeon.Name+" difficulty : ", toaDifficultyProps)
-		} else {
-			difficultyGrid, err := createGridBoolBox(dungeon.Name+" difficulty : ", difficultyProps)
-		}
+		difficultyGrid, err := createGridBoolBox(dungeon.Name+" difficulty : ", dungeon.BoolProps[1])
 		if err != nil {
 			log.Fatal("Unable to create difficultyGrid:", err)
 		}
@@ -373,6 +485,7 @@ func (dungeon *Dungeon) createDungeonContent(count int, appWidgets AppWidgets) (
 
 	if dungeon.ConcernedParam[4] {
 		appWidgets.StartStages[count], _ = gtk.EntryNew()
+		appWidgets.StartStages[count].SetText(dungeon.StartStage)
 		startStageGrid, err := createGridEntry("Start dungeon to stage n° : ", 3, appWidgets.StartStages[count])
 		if err != nil {
 			log.Fatal("Unable to create startStageGrid:", err)
@@ -381,7 +494,7 @@ func (dungeon *Dungeon) createDungeonContent(count int, appWidgets AppWidgets) (
 	}
 
 	if dungeon.ConcernedParam[5] {
-		hohGrid, err := createGridBoolBox("Is there any opened HoH : ", hohProps)
+		hohGrid, err := createGridBoolBox("Is there any opened HoH : ", dungeon.BoolProps[2])
 		if err != nil {
 			log.Fatal("Unable to create hohGrid:", err)
 		}

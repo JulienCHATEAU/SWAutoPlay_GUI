@@ -159,11 +159,11 @@ func createDungeon(name string, concernedParams []bool, adt string, runCount str
 			},
 		},
 	}
+	if name != "ToA" {
+		dungeon.BoolProps[1] = append(dungeon.BoolProps[1], hell)
+	}
 	for index, prop := range dungeon.BoolProps {
 		prop[radioSelectedIndex[index]].Value = true
-	}
-	if name != "ToA" {
-		dungeon.BoolProps[1][2] = hell
 	}
 	return dungeon
 }

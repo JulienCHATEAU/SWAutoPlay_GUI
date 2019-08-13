@@ -97,14 +97,16 @@ func CreateDeviceWindow(devices []Device, runCommand []string, btnStop *gtk.Butt
 	btn.SetMarginEnd(10)
 	btn.SetMarginStart(10)
 	btn.Connect("clicked", func() {
-		win.Destroy()
-		go func() {
-			run(devices[selectedDeviceIndex], runCommand)
-			btnRun.SetVisible(true)
-			btnStop.SetLabel("Exit")
-		}()
-		btnRun.SetVisible(false)
-		btnStop.SetLabel("Stop current run")
+		if len(devices) > 0 {
+			win.Destroy()
+			go func() {
+				run(devices[selectedDeviceIndex], runCommand)
+				btnRun.SetVisible(true)
+				btnStop.SetLabel("Exit")
+			}()
+			btnRun.SetVisible(false)
+			btnStop.SetLabel("Stop current run")
+		}
 	})
 	contentGrid.Add(btn)
 

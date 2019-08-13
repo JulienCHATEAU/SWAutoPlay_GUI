@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"strings"
-
 	"github.com/gotk3/gotk3/gtk"
 	goadb "github.com/zach-klippenstein/goadb"
 )
@@ -56,6 +55,7 @@ var hohNo = BoolProperty{"No", true, "false"}
 var props = []*BoolProperty{&home, &island, &toa}
 var refillProps = []*BoolProperty{&chest, &sp, &crystals, &noRefill}
 var difficultyProps = []*BoolProperty{&normal, &hard, &hell}
+var toaDifficultyProps = []*BoolProperty{&normal, &hard}
 var hohProps = []*BoolProperty{&hohYes, &hohNo}
 var scenarioDungeons = []string{"Garen", "Siz", "Kabir", "Ragon", "Telain", "Hydeni", "Tamor", "Vrofagus", "Faimon", "Aiden", "Ferun", "Runar", "Charuka"}
 
@@ -166,8 +166,6 @@ func main() {
 		gtk.Main()
 	})
 	btnStop.Connect("clicked", func() {
-		btnRun.SetVisible(true)
-		btnStop.SetLabel("Exit")
 		gtk.MainQuit()
 		// gtk.Main()
 	})
@@ -279,7 +277,11 @@ func getHoH(index int, appWidgets AppWidgets) (string, string, error) {
 }
 
 func getDifficulty(index int, appWidgets AppWidgets) (string, string, error) {
-	return getBoolParams("Difficulty", difficultyProps)
+	if index == 3 {//ToA page
+		return getBoolParams("Difficulty", toaDifficultyProps)
+	} else {//other page
+		return getBoolParams("Difficulty", difficultyProps)
+	}
 }
 
 func getRefill(index int, appWidgets AppWidgets) (string, string, error) {
@@ -358,7 +360,11 @@ func (dungeon *Dungeon) createDungeonContent(count int, appWidgets AppWidgets) (
 	}
 
 	if dungeon.ConcernedParam[3] {
-		difficultyGrid, err := createGridBoolBox(dungeon.Name+" difficulty : ", difficultyProps)
+		if dungeon.Name == "ToA" {
+			difficultyGrid, err := createGridBoolBox(dungeon.Name+" difficulty : ", toaDifficultyProps)
+		} else {
+			difficultyGrid, err := createGridBoolBox(dungeon.Name+" difficulty : ", difficultyProps)
+		}
 		if err != nil {
 			log.Fatal("Unable to create difficultyGrid:", err)
 		}

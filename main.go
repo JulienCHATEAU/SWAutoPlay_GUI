@@ -70,7 +70,7 @@ func (d *Dungeon) getActiveBoolProps() []string {
 	return boolPropsIndexes
 }
 
-func (d *Dungeon) toSaveString(adt string, runCount string, startStage string) string {
+func (d *Dungeon) toSaveString(adt string, runCount string, startStage string, scenarioDungeon string) string {
 	boolPropsIndexes := d.getActiveBoolProps()
 	res := d.Name + "|" +
 		strconv.FormatBool(d.ConcernedParam[3]) + "|" +
@@ -79,7 +79,7 @@ func (d *Dungeon) toSaveString(adt string, runCount string, startStage string) s
 		adt + "|" +
 		runCount + "|" +
 		startStage + "|" +
-		strconv.Itoa(d.ScenarioDungeon) + "|" +
+		scenarioDungeon + "|" +
 		boolPropsIndexes[0] + "|" +
 		boolPropsIndexes[1] + "|" +
 		boolPropsIndexes[2] + "\n"
@@ -400,8 +400,8 @@ func saveParams(appWidgets AppWidgets) {
 		if dungeon.ConcernedParam[4] {
 			startStage, _ = appWidgets.StartStages[i].GetText()
 		}
-
-		content += dungeon.toSaveString(adt, runCount, startStage)
+		scenarioDungeon := strconv.Itoa(appWidgets.ScenarioNames[0].GetActive())
+		content += dungeon.toSaveString(adt, runCount, startStage, scenarioDungeon)
 	}
 	err := ioutil.WriteFile("data/lastParams", []byte(content), 0644)
 	if err != nil {

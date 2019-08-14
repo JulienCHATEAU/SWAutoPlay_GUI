@@ -44,6 +44,7 @@ func CreateDeviceWindow(devices []Device, runCommand []string, btnStop *gtk.Butt
 	win.SetDefaultSize(400, 280)
 	win.SetTitle("Device choice")
 	win.SetPosition(gtk.WIN_POS_CENTER)
+	win.Connect("destroy", gtk.MainQuit)
 
 	contentGrid, err := gtk.GridNew()
 	if err != nil {
@@ -65,10 +66,6 @@ func CreateDeviceWindow(devices []Device, runCommand []string, btnStop *gtk.Butt
 	treeView.SetHExpand(true)
 	treeView.SetVExpand(true)
 	listStore, _ := gtk.ListStoreNew(glib.TYPE_STRING)
-
-	// Window properties
-	win.SetTitle("Device choice")
-	win.Connect("destroy", gtk.MainQuit)
 
 	// treeView properties
 	renderer, _ := gtk.CellRendererTextNew()

@@ -4,10 +4,13 @@ import (
 	"SWAutoPlay_GUI/adb"
 	"SWAutoPlay_GUI/widgets"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
+	"os"
 	"strconv"
 	"strings"
+
 	"github.com/gotk3/gotk3/gtk"
 	goadb "github.com/zach-klippenstein/goadb"
 )
@@ -87,6 +90,23 @@ func (d *Dungeon) toSaveString(adt string, runCount string, startStage string, s
 
 func createDungeonsFromSavedFile() []Dungeon {
 	dungeons := make([]Dungeon, 5)
+	if _, err := os.Stat("data/lastParams"); os.IsNotExist(err) {
+		source, err := os.Open("data/savePattern/lastParams")
+		if err != nil {
+			fmt.Print("Save src open error")
+		}
+		defer source.Close()
+
+		destination, err := os.Create("data/lastParams")
+		if err != nil {
+			fmt.Print("Save dest creation error")
+		}
+		defer destination.Close()
+		_, err = io.Copy(destination, source)
+		if err != nil {
+			fmt.Print("Save copy error")
+		}
+	}
 	content, err := ioutil.ReadFile("data/lastParams")
 	if err != nil {
 		log.Fatal(err)

@@ -4,10 +4,9 @@ import (
 	"fmt"
 	"log"
 	"strings"
-
+	"SWAutoPlay_GUI/adb"
 	"github.com/gotk3/gotk3/glib"
 	"github.com/gotk3/gotk3/gtk"
-	goadb "github.com/zach-klippenstein/goadb"
 )
 
 // var devices = []Device{
@@ -112,15 +111,9 @@ func CreateDeviceWindow(devices []Device, runCommand []string, btnStop *gtk.Butt
 }
 
 func run(device Device, runCommand []string) {
-	adb, err := goadb.New()
-	if err != nil {
-		fmt.Printf("Error creating adb %s", err)
-	}
-	fmt.Printf("%q\n", runCommand)
-	out, err := adb.Device(goadb.DeviceWithSerial(device.Serial)).RunCommand("am", runCommand...)
-	if err != nil {
-		fmt.Printf("Error with adb command %s", err)
-	}
+	runCommand = append([]string{"am"}, runCommand...)
+	runCommand = append([]string{"shell"}, runCommand...)
+	out := adb.ExecAdbCommand(runCommand...)
 	fmt.Printf(out)
 }
 

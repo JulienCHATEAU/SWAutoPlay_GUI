@@ -20,7 +20,7 @@ func CreateErrorWindow(err error) *gtk.Window {
 	if err2 != nil {
 		log.Panic("Can't create errorWindow (you became what you swore to handle !)")
 	}
-	win.SetDefaultSize(450, 60)
+	win.SetDefaultSize(500, 60)
 	win.SetTitle("Error")
 	win.SetPosition(gtk.WIN_POS_CENTER)
 	win.Connect("destroy", gtk.MainQuit)

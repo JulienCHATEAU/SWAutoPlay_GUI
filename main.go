@@ -108,7 +108,7 @@ func main() {
 	buttonGrid.SetMarginEnd(10)
 	buttonGrid.SetMarginStart(10)
 
-	btnRun, err := gtk.ButtonNewWithLabel("Run")
+	btnRun, err := gtk.ButtonNewWithLabel("Run this dungeon")
 	if err != nil {
 		log.Fatal("Unable to create btnRun:", err)
 	}
@@ -164,8 +164,8 @@ func main() {
 	})
 	btnStop.SetVisible(false)
 	buttonGrid.Add(btnRun)
-	buttonGrid.Add(btnStop)
 	buttonGrid.Add(btnConnect)
+	buttonGrid.Add(btnStop)
 	windowGrid.Add(buttonGrid)
 
 	win.Add(windowGrid)

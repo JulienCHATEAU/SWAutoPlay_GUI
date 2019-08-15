@@ -125,7 +125,8 @@ func (dungeon *Dungeon) CreateDungeonContent(count int, appWidgets AppWidgets) (
 			return nil, err
 		}
 		boxGrid.SetOrientation(gtk.ORIENTATION_HORIZONTAL)
-		boxGrid.SetMarginTop(10)
+    boxGrid.SetMarginTop(10)
+  	boxGrid.SetMarginBottom(10)
 		entryLabel, err := CreateSubTitleLabel("Scenario dungeon : ")
 		if err != nil {
 			return nil, err
@@ -174,7 +175,7 @@ func CreateGridEntry(labelValue string, maxWidthChar int, entry *gtk.Entry) (*gt
 		return nil, err
 	}
 	entryGrid.SetOrientation(gtk.ORIENTATION_HORIZONTAL)
-	entryGrid.SetMarginTop(10)
+  entryGrid.SetMarginTop(10)
 	entryLabel, err := CreateSubTitleLabel(labelValue)
 	if err != nil {
 		return nil, err
@@ -193,6 +194,8 @@ func CreateGridBoolBox(labelValue string, props []*BoolProperty) (*gtk.Grid, err
 	if err != nil {
 		return nil, err
 	}
+  runPosGrid.SetMarginTop(10)
+	runPosGrid.SetMarginBottom(10)
 	runPosGrid.SetOrientation(gtk.ORIENTATION_HORIZONTAL)
 	runPosLabel, err := CreateSubTitleLabel(labelValue)
 	if err != nil {
@@ -214,7 +217,6 @@ func CreateGridBoolBox(labelValue string, props []*BoolProperty) (*gtk.Grid, err
 		radio[index].SetActive(p.Value)
 		radio[index].Connect("toggled", func() {
 			updateParam(p, r.GetActive())
-			log.Print(p.toString())
 		})
 		box.PackStart(radio[index], true, true, 0)
 	}
@@ -228,8 +230,6 @@ func updateParam(param *BoolProperty, state bool) {
 
 func CreateSubTitleLabel(name string) (*gtk.Label, error) {
 	label, err := gtk.LabelNew(name)
-	label.SetMarginBottom(5)
-	label.SetMarginTop(5)
 	label.SetMarginStart(10)
 	label.SetMarginEnd(25)
 	return label, err

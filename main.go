@@ -91,6 +91,8 @@ func main() {
 
 	//Run position grid
 	runPosGrid, err := wid.CreateGridBoolBox("Start this run from : ", startTestPosProps)
+	runPosGrid.SetMarginTop(10)
+	runPosGrid.SetMarginStart(10)
 	if err != nil {
 		log.Fatal("createGridBoolBox() failed :", err)
 	}
@@ -119,12 +121,12 @@ func main() {
 		log.Fatal("Unable to create btnStop:", err)
 	}
 	btnStop.SetHExpand(true)
-	btnStop.SetMarginEnd(10)
 	btnConnect, err := gtk.ButtonNewWithLabel("Connect new devices")
 	if err != nil {
 		log.Fatal("Unable to create btnConnect:", err)
 	}
 	btnConnect.SetHExpand(true)
+	btnConnect.SetMarginEnd(10)
 
 	btnConnect.Connect("clicked", func() {
 		connectDeviceWindow, err := wid.CreateConnectDeviceWindow(win, errorsChan, winChan)
@@ -207,6 +209,9 @@ func initDevices() ([]wid.Device, error) {
 	out := adb.ExecAdbCommand("devices")
 	outSplit := strings.Split(out, "\n")
 	devices := make([]wid.Device, len(outSplit)-3)
+	if strings.HasPrefix(outSplit[1], "* daemon") {
+		return make([]wid.Device, 0), nil
+	}
 	for i := 1; outSplit[i] != "" && outSplit[i] != "\r"; i++ {
 		deviceSplit := strings.Split(outSplit[i], "\t")
 		devices[i-1].Serial = deviceSplit[0]

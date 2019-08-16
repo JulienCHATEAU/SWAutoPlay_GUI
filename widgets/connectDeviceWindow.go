@@ -5,6 +5,7 @@ import (
 	"github.com/gotk3/gotk3/gtk"
   "regexp"
   "SWAutoPlay_GUI/adb"
+  "SWAutoPlay_GUI/save"
   "strings"
 )
 
@@ -16,7 +17,9 @@ func CreateConnectDeviceWindow(win *gtk.Window, errChan chan error, winChan chan
 	window.SetDefaultSize(430, 150)
 	window.SetTitle("Device connection")
 	window.SetPosition(gtk.WIN_POS_CENTER)
-	window.Connect("destroy", gtk.MainQuit)
+	window.Connect("destroy", func() {
+    gtk.MainQuit()
+  })
 
 	contentGrid, err := gtk.GridNew()
 	if err != nil {
@@ -34,8 +37,12 @@ func CreateConnectDeviceWindow(win *gtk.Window, errChan chan error, winChan chan
 	title.SetHExpand(true)
 	contentGrid.Add(title)
 
-  entry, _ := gtk.EntryNew()
-  entry.SetText("192.168.1.20")
+  entry, err := gtk.EntryNew()
+  if err != nil {
+		return nil, fmt.Errorf("Unable to create entry:", err)
+	}
+  lastDevice := strings.TrimRight(save.ReadSaveFile("lastDevice"), "\n")
+  entry.SetText(lastDevice)
   ipAddressGrid, err := CreateGridEntry("IP address of the device to connect : ", 16, entry)
   ipAddressGrid.SetMarginStart(10)
   ipAddressGrid.SetMarginEnd(20)
@@ -58,6 +65,7 @@ func CreateConnectDeviceWindow(win *gtk.Window, errChan chan error, winChan chan
     if err != nil {
       HandleError(win, errChan, winChan, err)
     } else {
+      SaveDevice(ip)
       window.Close()
     }
   })
@@ -68,7 +76,15 @@ func CreateConnectDeviceWindow(win *gtk.Window, errChan chan error, winChan chan
   return window, nil
 }
 
+
+func SaveDevice(ip string) {
+  save.WriteSave(ip, "lastDevice")
+}
+
 func connectWithIpAddress(ip string) error {
+  if ip == "" {
+    return fmt.Errorf("Please fill in the IP address")
+  }
   ipMatch := checkIpAddress(ip)
   if !ipMatch {
     return fmt.Errorf("That's not an IP address")

@@ -3,13 +3,12 @@ package main
 import (
 	"SWAutoPlay_GUI/adb"
 	wid "SWAutoPlay_GUI/widgets"
+	"SWAutoPlay_GUI/save"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"log"
-	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gotk3/gotk3/gtk"
 )
@@ -46,9 +45,10 @@ func main() {
 	win.SetTitle("SWAP")
 	win.SetPosition(gtk.WIN_POS_CENTER)
 	win.Connect("destroy", func() {
-		saveParams(appWidgets)
+		SaveParams(appWidgets)
 		win.Destroy()
 		gtk.MainQuit()
+		disconnectDevice(wid.CurrentRunSerial)
 	})
 
 	//Window Grid
@@ -147,7 +147,7 @@ func main() {
 		if err != nil {
 			wid.HandleError(win, errorsChan, winChan, err)
 		} else {
-			devicesWindow, err := wid.CreateDeviceWindow(devices, runCommand, btnStop, btnRun)
+			devicesWindow, err := wid.CreateDeviceWindow(win, devices, runCommand, btnStop, btnRun)
 			if err != nil {
 				log.Print("Can't create device devicesWindow")
 			}
@@ -160,8 +160,12 @@ func main() {
 		}
 	})
 	btnStop.Connect("clicked", func() {
-		saveParams(appWidgets)
-		gtk.MainQuit()
+		if value, _ := btnStop.GetLabel(); value == "Exit" {
+			SaveParams(appWidgets)
+			gtk.MainQuit()
+		} else {
+			stopRun()
+		}
 		// gtk.Main()
 	})
 	btnStop.SetVisible(false)
@@ -174,6 +178,16 @@ func main() {
 	win.ShowAll()
 
 	gtk.Main()
+}
+
+func stopRun() {
+	disconnectDevice(wid.CurrentRunSerial)
+	time.Sleep(1 * time.Second)
+	adb.ExecAdbCommand("connect", wid.CurrentRunSerial)
+}
+
+func disconnectDevice(serial string) {
+	adb.ExecAdbCommand("disconnect", serial)
 }
 
 func createRunCommand(dungeonsTabs *gtk.Notebook, appWidgets wid.AppWidgets) ([]string, error) { //AverageDungeonTime | RunCount | Refill | Difficulty | StartStage
@@ -203,6 +217,21 @@ func createRunCommand(dungeonsTabs *gtk.Notebook, appWidgets wid.AppWidgets) ([]
 	}
 	args = append(args, swautoplayPackage)
 	return args, nil
+}
+
+func SaveParams(appWidgets wid.AppWidgets) {
+	content := ""
+	for i, dungeon := range dungeons {
+		startStage := ""
+		adt, _ := appWidgets.Adts[i].GetText()
+		runCount, _ := appWidgets.RunCounts[i].GetText()
+		if dungeon.ConcernedParam[4] {
+			startStage, _ = appWidgets.StartStages[i].GetText()
+		}
+		scenarioDungeon := strconv.Itoa(appWidgets.ScenarioNames[0].GetActive())
+		content += dungeon.ToSaveString(adt, runCount, startStage, scenarioDungeon)
+	}
+  save.WriteSave(content, "lastParams")
 }
 
 func initDevices() ([]wid.Device, error) {
@@ -285,48 +314,9 @@ func getRunPosition(index int, appWidgets wid.AppWidgets) (string, string, error
 	return getBoolParams("StartTestPosition", startTestPosProps)
 }
 
-func saveParams(appWidgets wid.AppWidgets) {
-	content := ""
-	for i, dungeon := range dungeons {
-		startStage := ""
-		adt, _ := appWidgets.Adts[i].GetText()
-		runCount, _ := appWidgets.RunCounts[i].GetText()
-		if dungeon.ConcernedParam[4] {
-			startStage, _ = appWidgets.StartStages[i].GetText()
-		}
-		scenarioDungeon := strconv.Itoa(appWidgets.ScenarioNames[0].GetActive())
-		content += dungeon.ToSaveString(adt, runCount, startStage, scenarioDungeon)
-	}
-	err := ioutil.WriteFile("data/lastParams", []byte(content), 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-
 func createDungeonsFromSavedFile() []wid.Dungeon {
 	dungeons := make([]wid.Dungeon, 5)
-	if _, err := os.Stat("data/lastParams"); os.IsNotExist(err) {
-		source, err := os.Open("data/savePattern/lastParams")
-		if err != nil {
-			fmt.Print("Save src open error")
-		}
-		defer source.Close()
-
-		destination, err := os.Create("data/lastParams")
-		if err != nil {
-			fmt.Print("Save dest creation error")
-		}
-		defer destination.Close()
-		_, err = io.Copy(destination, source)
-		if err != nil {
-			fmt.Print("Save copy error")
-		}
-	}
-	content, err := ioutil.ReadFile("data/lastParams")
-	if err != nil {
-		log.Fatal(err)
-	}
-	strContent := string(content)
+	strContent := save.ReadSaveFile("lastParams")
 	splitDungeon := strings.Split(strContent, "\n")
 	for index, dungeon := range splitDungeon {
 		if dungeon != "" {

@@ -14,7 +14,8 @@ import (
 //   Device{"Huawei", "X8976", "FEF698ST65", "USB"},
 // }
 
-var selectedDeviceIndex = -1
+var SelectedDeviceIndex = -1
+var CurrentRunSerial = ""
 
 type Device struct {
 	Manufacturer string
@@ -35,7 +36,7 @@ func (device *Device) IsItMyLabel(label string) bool {
 	return device.ToLabel() == label
 }
 
-func CreateDeviceWindow(devices []Device, runCommand []string, btnStop *gtk.Button, btnRun *gtk.Button) (*gtk.Window, error) {
+func CreateDeviceWindow(mainWindow *gtk.Window, devices []Device, runCommand []string, btnStop *gtk.Button, btnRun *gtk.Button) (*gtk.Window, error) {
 	win, err := gtk.WindowNew(gtk.WINDOW_TOPLEVEL)
 	if err != nil {
 		return nil, err
@@ -95,8 +96,9 @@ func CreateDeviceWindow(devices []Device, runCommand []string, btnStop *gtk.Butt
 	btn.Connect("clicked", func() {
 		if len(devices) > 0 {
 			win.Destroy()
+			CurrentRunSerial = devices[SelectedDeviceIndex].Serial
 			go func() {
-				run(devices[selectedDeviceIndex], runCommand)
+				run(devices[SelectedDeviceIndex], runCommand)
 				btnRun.SetVisible(true)
 				btnStop.SetLabel("Exit")
 			}()
@@ -127,11 +129,11 @@ func deviceChanged(s *gtk.TreeSelection, listStore *gtk.ListStore, devices []Dev
 		deviceLabel, _ := value.GetString()
 		for i, device := range devices {
 			if device.IsItMyLabel(deviceLabel) {
-				selectedDeviceIndex = i
+				SelectedDeviceIndex = i
 				break
 			}
 		}
 	}
-	fmt.Printf("selectedDeviceIndex : %d", selectedDeviceIndex)
+	fmt.Printf("SelectedDeviceIndex : %d", SelectedDeviceIndex)
 	return nil
 }

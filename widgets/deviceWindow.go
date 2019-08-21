@@ -1,10 +1,11 @@
 package widgets
 
 import (
+	"SWAutoPlay_GUI/adb"
 	"fmt"
 	"log"
 	"strings"
-	"SWAutoPlay_GUI/adb"
+
 	"github.com/gotk3/gotk3/glib"
 	"github.com/gotk3/gotk3/gtk"
 )
@@ -115,6 +116,8 @@ func CreateDeviceWindow(mainWindow *gtk.Window, devices []Device, runCommand []s
 func run(device Device, runCommand []string) {
 	runCommand = append([]string{"am"}, runCommand...)
 	runCommand = append([]string{"shell"}, runCommand...)
+	runCommand = append([]string{CurrentRunSerial}, runCommand...)
+	runCommand = append([]string{"-s"}, runCommand...)
 	out := adb.ExecAdbCommand(runCommand...)
 	fmt.Printf(out)
 }

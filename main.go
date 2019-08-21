@@ -2,8 +2,8 @@ package main
 
 import (
 	"SWAutoPlay_GUI/adb"
-	wid "SWAutoPlay_GUI/widgets"
 	"SWAutoPlay_GUI/save"
+	wid "SWAutoPlay_GUI/widgets"
 	"fmt"
 	"log"
 	"strconv"
@@ -97,7 +97,6 @@ func main() {
 		log.Fatal("createGridBoolBox() failed :", err)
 	}
 	windowGrid.Add(runPosGrid)
-
 
 	buttonGrid, err := gtk.GridNew()
 	if err != nil {
@@ -231,7 +230,7 @@ func SaveParams(appWidgets wid.AppWidgets) {
 		scenarioDungeon := strconv.Itoa(appWidgets.ScenarioNames[0].GetActive())
 		content += dungeon.ToSaveString(adt, runCount, startStage, scenarioDungeon)
 	}
-  save.WriteSave(content, "lastParams")
+	save.WriteSave(content, "lastParams")
 }
 
 func initDevices() ([]wid.Device, error) {
@@ -249,8 +248,8 @@ func initDevices() ([]wid.Device, error) {
 		} else {
 			devices[i-1].Mode = "USB"
 		}
-		devices[i-1].Manufacturer = strings.TrimRight(adb.ExecAdbCommand("shell", "getprop", "ro.product.manufacturer"), "\r\n")
-		devices[i-1].Model = strings.TrimRight(adb.ExecAdbCommand("shell", "getprop", "ro.product.model"), "\r\n")
+		devices[i-1].Manufacturer = strings.TrimRight(adb.ExecAdbCommand("-s", devices[i-1].Serial, "shell", "getprop", "ro.product.manufacturer"), "\r\n")
+		devices[i-1].Model = strings.TrimRight(adb.ExecAdbCommand("-s", devices[i-1].Serial, "shell", "getprop", "ro.product.model"), "\r\n")
 	}
 	return devices, nil
 }

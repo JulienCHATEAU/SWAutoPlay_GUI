@@ -12,9 +12,9 @@ type AppWidgets struct {
 	Adts          []*gtk.Entry
 	RunCounts     []*gtk.Entry
 	StartStages   []*gtk.Entry
+	Level 		  []*gtk.Entry
 	ScenarioNames []*gtk.ComboBoxText
 }
-
 
 type BoolProperty struct {
 	Name        string
@@ -26,13 +26,16 @@ func (param *BoolProperty) toString() string {
 	return fmt.Sprintf("Name : %s - Value : %t", param.Name, param.Value)
 }
 
+const DUNGEON_CONCERNED_PARAM_COUNT = 7
+const DUNGEON_CONCERNED_BOOL_PARAM_COUNT = 4 // Difficulty | StartStage | HoH | Level
 
 type Dungeon struct {
 	Name            string
-	ConcernedParam  [6]bool //AverageDungeonTime | RunCount | Refill | Difficulty | StartStage | HoH
+	ConcernedParam  [DUNGEON_CONCERNED_PARAM_COUNT]bool //AverageDungeonTime | RunCount | Refill | Difficulty | StartStage | HoH | Level
 	Adt             string
 	RunCount        string
 	StartStage      string
+	Level 			string
 	ScenarioDungeon int
 	BoolProps       [][]*BoolProperty // Refill | Difficulty | HoH
 }
@@ -50,20 +53,26 @@ func (d *Dungeon) getActiveBoolProps() []string {
 	return boolPropsIndexes
 }
 
-func (d *Dungeon) ToSaveString(adt string, runCount string, startStage string, scenarioDungeon string) string {
+func (d *Dungeon) ToSaveString(adt string, runCount string, startStage string, scenarioDungeon string, level string) string {
 	boolPropsIndexes := d.getActiveBoolProps()
 	res := d.Name + "|" +
 		strconv.FormatBool(d.ConcernedParam[3]) + "|" +
 		strconv.FormatBool(d.ConcernedParam[4]) + "|" +
 		strconv.FormatBool(d.ConcernedParam[5]) + "|" +
+		strconv.FormatBool(d.ConcernedParam[6]) + "|" +
 		adt + "|" +
 		runCount + "|" +
 		startStage + "|" +
+		level + "|" +
 		scenarioDungeon + "|" +
 		boolPropsIndexes[0] + "|" +
 		boolPropsIndexes[1] + "|" +
 		boolPropsIndexes[2] + "\n"
 	return res
+}
+
+func IsRiftDungeon(dungeonName string) bool {
+	return dungeonName == "Karzhan" || dungeonName == "Ellunia" || dungeonName == "Lumel"
 }
 
 func (dungeon *Dungeon) CreateDungeonContent(count int, appWidgets AppWidgets) (*gtk.Grid, error) {
@@ -125,8 +134,8 @@ func (dungeon *Dungeon) CreateDungeonContent(count int, appWidgets AppWidgets) (
 			return nil, err
 		}
 		boxGrid.SetOrientation(gtk.ORIENTATION_HORIZONTAL)
-    boxGrid.SetMarginTop(10)
-  	boxGrid.SetMarginBottom(10)
+		boxGrid.SetMarginTop(10)
+		boxGrid.SetMarginBottom(10)
 		entryLabel, err := CreateSubTitleLabel("Scenario dungeon : ")
 		if err != nil {
 			return nil, err
@@ -137,7 +146,11 @@ func (dungeon *Dungeon) CreateDungeonContent(count int, appWidgets AppWidgets) (
 	}
 
 	if dungeon.ConcernedParam[3] {
-		difficultyGrid, err := CreateGridBoolBox(dungeon.Name+" difficulty : ", dungeon.BoolProps[1])
+		difficultyStr := " difficulty : "
+		if (IsRiftDungeon(dungeon.Name)) {
+			difficultyStr = " dungeon : "
+		}
+		difficultyGrid, err := CreateGridBoolBox(dungeon.Name + difficultyStr, dungeon.BoolProps[1])
 		if err != nil {
 			log.Fatal("Unable to Create difficultyGrid:", err)
 		}
@@ -147,7 +160,20 @@ func (dungeon *Dungeon) CreateDungeonContent(count int, appWidgets AppWidgets) (
 	if dungeon.ConcernedParam[4] {
 		appWidgets.StartStages[count], _ = gtk.EntryNew()
 		appWidgets.StartStages[count].SetText(dungeon.StartStage)
-		startStageGrid, err := CreateGridEntry("Start dungeon to stage n° : ", 3, appWidgets.StartStages[count])
+		label := "Start dungeon to stage n° : "
+		if (IsRiftDungeon(dungeon.Name)) {
+			firstMonster := "Inugami"
+			secondMonster := "Bear"
+			if (dungeon.Name == "Ellunia") {
+				firstMonster = "Fairy"
+				secondMonster = "Pixie"
+			} else if (dungeon.Name == "Lumel") {
+				firstMonster = "Werewolf"
+				secondMonster = "Martial cat"
+			}
+			label = "Monster (0 for "+firstMonster+" and 1 for "+secondMonster+") :"
+		}
+		startStageGrid, err := CreateGridEntry(label, 3, appWidgets.StartStages[count])
 		if err != nil {
 			log.Fatal("Unable to Create startStageGrid:", err)
 		}
@@ -162,12 +188,18 @@ func (dungeon *Dungeon) CreateDungeonContent(count int, appWidgets AppWidgets) (
 		contentGrid.Add(hohGrid)
 	}
 
+	if dungeon.ConcernedParam[6] {
+		appWidgets.Level[count], _ = gtk.EntryNew()
+		appWidgets.Level[count].SetText(dungeon.Level)
+		levelGrid, err := CreateGridEntry("Dungeon level : ", 3, appWidgets.Level[count])
+		if err != nil {
+			log.Fatal("Unable to Create levelGrid:", err)
+		}
+		contentGrid.Add(levelGrid)
+	}
+
 	return contentGrid, nil
 }
-
-
-
-
 
 func CreateGridEntry(labelValue string, maxWidthChar int, entry *gtk.Entry) (*gtk.Grid, error) {
 	entryGrid, err := gtk.GridNew()
@@ -175,7 +207,7 @@ func CreateGridEntry(labelValue string, maxWidthChar int, entry *gtk.Entry) (*gt
 		return nil, err
 	}
 	entryGrid.SetOrientation(gtk.ORIENTATION_HORIZONTAL)
-  entryGrid.SetMarginTop(10)
+  	entryGrid.SetMarginTop(10)
 	entryLabel, err := CreateSubTitleLabel(labelValue)
 	if err != nil {
 		return nil, err

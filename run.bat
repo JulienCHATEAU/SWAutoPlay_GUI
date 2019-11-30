@@ -1,0 +1,1 @@
+wsl bash -c "export DISPLAY=:0 && export GOPATH=/mnt/d/SteaMyProjects/go/ && /mnt/d/SteaMyProjects/go/bin/SWAutoPlay_GUI"

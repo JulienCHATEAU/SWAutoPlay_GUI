@@ -13,6 +13,8 @@ import (
 	"github.com/gotk3/gotk3/gtk"
 )
 
+const DUNGEON_COUNT = 8
+
 var startTestPosProps = []*wid.BoolProperty{
 	&wid.BoolProperty{"Phone home page", true, "Home"},
 	&wid.BoolProperty{"Island", false, "Island"},
@@ -35,6 +37,7 @@ func main() {
 	appWidgets.Adts = make([]*gtk.Entry, dunLength)
 	appWidgets.RunCounts = make([]*gtk.Entry, dunLength)
 	appWidgets.StartStages = make([]*gtk.Entry, dunLength)
+	appWidgets.Level = make([]*gtk.Entry, dunLength)
 	appWidgets.ScenarioNames = make([]*gtk.ComboBoxText, 1)
 
 	win, err := gtk.WindowNew(gtk.WINDOW_TOPLEVEL)
@@ -192,7 +195,7 @@ func disconnectDevice(serial string) {
 func createRunCommand(dungeonsTabs *gtk.Notebook, appWidgets wid.AppWidgets) ([]string, error) { //AverageDungeonTime | RunCount | Refill | Difficulty | StartStage
 	swautoplayPackage := "com.example.swautoplay.test/androidx.test.runner.AndroidJUnitRunner"
 	args := []string{"instrument", "-w", "-r"}
-	var params = []func(int, wid.AppWidgets) (string, string, error){getAverageDungeonTime, getRunCount, getRefill, getDifficulty, getStartStage, getHoH, getRunPosition, getDungeonName}
+	var params = []func(int, wid.AppWidgets) (string, string, error){getAverageDungeonTime, getRunCount, getRefill, getDifficulty, getStartStage, getHoH, getRunPosition, getDungeonName, getLevel}
 	index := dungeonsTabs.GetCurrentPage()
 	dungeon := dungeons[index]
 	for i, fun := range params {
@@ -223,12 +226,13 @@ func SaveParams(appWidgets wid.AppWidgets) {
 	for i, dungeon := range dungeons {
 		startStage := ""
 		adt, _ := appWidgets.Adts[i].GetText()
+		level, _ := appWidgets.Level[i].GetText()
 		runCount, _ := appWidgets.RunCounts[i].GetText()
 		if dungeon.ConcernedParam[4] {
 			startStage, _ = appWidgets.StartStages[i].GetText()
 		}
 		scenarioDungeon := strconv.Itoa(appWidgets.ScenarioNames[0].GetActive())
-		content += dungeon.ToSaveString(adt, runCount, startStage, scenarioDungeon)
+		content += dungeon.ToSaveString(adt, runCount, startStage, scenarioDungeon, level)
 	}
 	save.WriteSave(content, "lastParams")
 }
@@ -252,6 +256,10 @@ func initDevices() ([]wid.Device, error) {
 		devices[i-1].Model = strings.TrimRight(adb.ExecAdbCommand("-s", devices[i-1].Serial, "shell", "getprop", "ro.product.model"), "\r\n")
 	}
 	return devices, nil
+}
+
+func getLevel(index int, appWidgets wid.AppWidgets) (string, string, error) {
+	return getEntryText(appWidgets.Level[index], "Level")
 }
 
 func getDungeonName(index int, appWidgets wid.AppWidgets) (string, string, error) {
@@ -314,14 +322,15 @@ func getRunPosition(index int, appWidgets wid.AppWidgets) (string, string, error
 }
 
 func createDungeonsFromSavedFile() []wid.Dungeon {
-	dungeons := make([]wid.Dungeon, 5)
+	dungeons := make([]wid.Dungeon, DUNGEON_COUNT)
 	strContent := save.ReadSaveFile("lastParams")
 	splitDungeon := strings.Split(strContent, "\n")
+	dcbpc := wid.DUNGEON_CONCERNED_BOOL_PARAM_COUNT
 	for index, dungeon := range splitDungeon {
 		if dungeon != "" {
 			splitDungeonData := strings.Split(dungeon, "|")
-			concernedParams := make([]bool, 3)
-			for i := 1; i < 4; i++ {
+			concernedParams := make([]bool, dcbpc)
+			for i := 1; i < dcbpc+1; i++ {
 				cp, err := strconv.ParseBool(splitDungeonData[i])
 				if err != nil {
 					if i == 1 {
@@ -332,23 +341,25 @@ func createDungeonsFromSavedFile() []wid.Dungeon {
 				}
 				concernedParams[i-1] = cp
 			}
-			scenarioDungeon, err := strconv.Atoi(splitDungeonData[7])
+			scenarioDungeon, err := strconv.Atoi(splitDungeonData[dcbpc+5])
 			if err != nil {
 				scenarioDungeon = 0
 			}
 			radioSelectedIndex := make([]int, 3)
-			for i := 8; i < len(splitDungeonData); i++ {
+			startt := dcbpc + 6
+			for i := startt; i < len(splitDungeonData); i++ {
 				rsi, err := strconv.Atoi(splitDungeonData[i])
 				if err != nil {
 					rsi = 0
 				}
-				radioSelectedIndex[i-8] = rsi
+				radioSelectedIndex[i-startt] = rsi
 			}
 			dungeons[index] = createDungeon(splitDungeonData[0],
 				concernedParams,
-				splitDungeonData[4],
 				splitDungeonData[5],
 				splitDungeonData[6],
+				splitDungeonData[7],
+				splitDungeonData[8],
 				scenarioDungeon,
 				radioSelectedIndex,
 			)
@@ -357,14 +368,31 @@ func createDungeonsFromSavedFile() []wid.Dungeon {
 	return dungeons
 }
 
-func createDungeon(name string, concernedParams []bool, adt string, runCount string, startStage string, scenarioDungeon int, radioSelectedIndex []int) wid.Dungeon {
+func createDungeon(name string, concernedParams []bool, adt string, runCount string, startStage string, level string, scenarioDungeon int, radioSelectedIndex []int) wid.Dungeon {
 	hell := &wid.BoolProperty{"Hell", false, "Hell"}
+	difficulty_props := []*wid.BoolProperty{
+		&wid.BoolProperty{"Normal", false, "Normal"},
+		&wid.BoolProperty{"Hard", false, "Hard"},
+	}
+	if (wid.IsRiftDungeon(name)) {
+		zone := "Forest"
+		if (name == "Ellunia") {
+			zone = "Sanctuary"
+		} else if (name == "Lumel") {
+			zone = "Cliff"
+		}
+		difficulty_props = []*wid.BoolProperty{
+			&wid.BoolProperty{"Vestige" , false, "Vestige"},
+			&wid.BoolProperty{zone, false, "Rune"},
+		}
+	}
 	dungeon := wid.Dungeon{
 		name,
-		[6]bool{true, true, true, concernedParams[0], concernedParams[1], concernedParams[2]},
+		[wid.DUNGEON_CONCERNED_PARAM_COUNT]bool{true, true, true, concernedParams[0], concernedParams[1], concernedParams[2], concernedParams[3]},
 		adt,
 		runCount,
 		startStage,
+		level,
 		scenarioDungeon,
 		[][]*wid.BoolProperty{
 			[]*wid.BoolProperty{
@@ -373,17 +401,14 @@ func createDungeon(name string, concernedParams []bool, adt string, runCount str
 				&wid.BoolProperty{"Crystals", false, "Crystals"},
 				&wid.BoolProperty{"Don't refill", false, "Off"},
 			},
-			[]*wid.BoolProperty{
-				&wid.BoolProperty{"Normal", false, "Normal"},
-				&wid.BoolProperty{"Hard", false, "Hard"},
-			},
+			difficulty_props,
 			[]*wid.BoolProperty{
 				&wid.BoolProperty{"Yes", false, "true"},
 				&wid.BoolProperty{"No", false, "false"},
 			},
 		},
 	}
-	if name != "ToA" {
+	if name != "ToA" && !wid.IsRiftDungeon(name) {
 		dungeon.BoolProps[1] = append(dungeon.BoolProps[1], hell)
 	}
 	for index, prop := range dungeon.BoolProps {

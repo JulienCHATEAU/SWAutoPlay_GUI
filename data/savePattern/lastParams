@@ -1,5 +1,8 @@
-Giant|false|false|true||||0|0|0|1
-Drake|false|false|true||||0|2|0|1
-Necropolis|false|false|true||||0|0|0|1
-ToA|true|true|false||||0|3|0|1
-Scenario|true|true|false||||0|0|2|1
+Giant|false|false|true|false||||1|0|0|0|1
+Drake|false|false|true|false||||1|0|2|0|1
+Necropolis|false|false|true|false||||1|0|0|0|1
+ToA|true|true|false|false||||1|0|3|0|1
+Scenario|true|true|false|false||||1|0|0|2|1
+Karzhan|true|true|false|true||||1|0|0|0|0
+Ellunia|true|true|false|true||||1|0|0|0|0
+Lumel|true|true|false|true||||1|0|0|0|0

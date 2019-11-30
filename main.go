@@ -195,7 +195,7 @@ func disconnectDevice(serial string) {
 func createRunCommand(dungeonsTabs *gtk.Notebook, appWidgets wid.AppWidgets) ([]string, error) { //AverageDungeonTime | RunCount | Refill | Difficulty | StartStage
 	swautoplayPackage := "com.example.swautoplay.test/androidx.test.runner.AndroidJUnitRunner"
 	args := []string{"instrument", "-w", "-r"}
-	var params = []func(int, wid.AppWidgets) (string, string, error){getAverageDungeonTime, getRunCount, getRefill, getDifficulty, getStartStage, getHoH, getRunPosition, getDungeonName, getLevel}
+	var params = []func(int, wid.AppWidgets) (string, string, error){getAverageDungeonTime, getRunCount, getRefill, getDifficulty, getStartStage, getHoH, getLevel, getRunPosition, getDungeonName}
 	index := dungeonsTabs.GetCurrentPage()
 	dungeon := dungeons[index]
 	for i, fun := range params {

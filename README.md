@@ -5,7 +5,7 @@ SWAutoPlay_GUI is a Graphical User Interface to make [SWAutoPlay](https://github
 ## Requirements
 
 - golang : `$ sudo apt-get install golang`
-- gtk3   : see [this](https://github.com/gotk3/gotk3) for gtk3 installation
+- gtk3   : see [this](https://github.com/gotk3/gotk3/wiki) for gtk3 installation
 - adb    : `$ sudo apt-get install adb`
 
 ## Installation 
@@ -22,12 +22,12 @@ If you haven't got any go workspace yet you should create one as following cloni
                                               |___ gotk3   
                                                        |___ gtk ...   
 ```
-Once the workspace is set, fill the GOROOT environment variable `$ export GOROOT=<somewhere>/go/` (in the console or updating your *.bashrc* file) and run `$ cd $GOROOT/src/SWAutoPlay_GUI && go install` to compile the project. The binary file of the application will be placed in 
-*$GOROOT/bin*
+Once the workspace is set, fill the GOPATH environment variable `$ export GOPATH=<somewhere>/go/` (in the console or updating your *.bashrc* file) and run `$ cd $GOPATH/src/SWAutoPlay_GUI && go install` to compile the project. The binary file of the application will be placed in 
+*$GOPATH/bin*
 
 ## Launch
 
-Move to your go workspace bin folder `$ cd $GOROOT/bin` and run `$ ./SWAutoPlay_GUI` to launch the application
+Move to your go workspace bin folder `$ cd $GOPATH/bin` and run `$ ./SWAutoPlay_GUI` to launch the application
 
 ## Usage
 

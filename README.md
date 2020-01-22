@@ -22,8 +22,12 @@ If you haven't got any go workspace yet you should create one as following cloni
                                               |___ gotk3   
                                                        |___ gtk ...   
 ```
-Once the workspace is set, fill the GOPATH environment variable `$ export GOPATH=<somewhere>/go/` (in the console or updating your *.bashrc* file) and run `$ cd $GOPATH/src/SWAutoPlay_GUI && go install` to compile the project. The binary file of the application will be placed in 
+Once the workspace is set, fill the GOPATH environment variable `$ export GOPATH=<somewhere>/go/` (in the console or updating your *.bashrc* file). Then run `$ cd $GOPATH/src/SWAutoPlay_GUI && go install` to compile the project. The binary file of the application will be placed in 
 *$GOPATH/bin*
+
+If you want to launch this application from a desktop shortcut you can
+- On Windows : copy the *SWAutoPlay.lnk* shortcut
+- On Linux : update the files *run.sh* and *add_shortcut.sh* updating the second line with your correct GOPATH and launch `$ sudo ./add_shortcut.sh`. You will find the shortcut in your desktop search bar
 
 ## Launch
 

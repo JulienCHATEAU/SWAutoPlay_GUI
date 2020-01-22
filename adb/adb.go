@@ -11,7 +11,7 @@ import (
 
 func ExecAdbCommand(args ...string) (string) {
   buf := new(bytes.Buffer)
-	cmd := exec.Command("adb.exe", args...)
+	cmd := exec.Command("adb", args...)
   joinedArgs := strings.Join(args, " ")
   fmt.Printf("Exec command : adb " + joinedArgs + "\n")
 	cmd.Stdout = io.MultiWriter(os.Stdout, buf)

@@ -191,7 +191,11 @@ func (dungeon *Dungeon) CreateDungeonContent(count int, appWidgets AppWidgets) (
 	if dungeon.ConcernedParam[6] {
 		appWidgets.Level[count], _ = gtk.EntryNew()
 		appWidgets.Level[count].SetText(dungeon.Level)
-		levelGrid, err := CreateGridEntry("Dungeon level : ", 3, appWidgets.Level[count])
+		levelLabel := "Dungeon level : "
+		if dungeon.Name == "Beasts" {
+			levelLabel = "Beast choice : 0 = red, 1 = blue, 2 = yellow, 3 = white, 4 = dark"
+		}
+		levelGrid, err := CreateGridEntry(levelLabel, 3, appWidgets.Level[count])
 		if err != nil {
 			log.Fatal("Unable to Create levelGrid:", err)
 		}

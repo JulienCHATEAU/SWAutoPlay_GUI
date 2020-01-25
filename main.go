@@ -13,7 +13,7 @@ import (
 	"github.com/gotk3/gotk3/gtk"
 )
 
-const DUNGEON_COUNT = 8
+const DUNGEON_COUNT = 9
 
 var startTestPosProps = []*wid.BoolProperty{
 	&wid.BoolProperty{"Phone home page", true, "Home"},

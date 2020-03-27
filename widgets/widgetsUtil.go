@@ -162,8 +162,9 @@ func (dungeon *Dungeon) CreateDungeonContent(count int, appWidgets AppWidgets) (
 		appWidgets.StartStages[count].SetText(dungeon.StartStage)
 		label := "Start dungeon to stage n° : "
 		if (IsRiftDungeon(dungeon.Name)) {
-			firstMonster := "Inugami"
-			secondMonster := "Bear"
+			firstMonster := "Griffon"
+			secondMonster := "Inugami"
+			thirdMonster := "Bear"
 			if (dungeon.Name == "Ellunia") {
 				firstMonster = "Fairy"
 				secondMonster = "Pixie"
@@ -171,7 +172,7 @@ func (dungeon *Dungeon) CreateDungeonContent(count int, appWidgets AppWidgets) (
 				firstMonster = "Werewolf"
 				secondMonster = "Martial cat"
 			}
-			label = "Monster (0 for "+firstMonster+" and 1 for "+secondMonster+") :"
+			label = "Monster (0 : "+firstMonster+", 1 : "+secondMonster+", 2 : "+thirdMonster+") :"
 		}
 		startStageGrid, err := CreateGridEntry(label, 3, appWidgets.StartStages[count])
 		if err != nil {

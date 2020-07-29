@@ -13,12 +13,25 @@ import (
 	"github.com/gotk3/gotk3/gtk"
 )
 
-const DUNGEON_COUNT = 9
+const DUNGEON_COUNT = 10
 
 var startTestPosProps = []*wid.BoolProperty{
 	&wid.BoolProperty{"Phone home page", true, "Home"},
 	&wid.BoolProperty{"Island", false, "Island"},
 	&wid.BoolProperty{"ToA stages page", false, "ToA"},
+	&wid.BoolProperty{"Rivals page", false, "Rivals"},
+}
+
+var rivalsState = []*wid.BoolProperty{
+	&wid.BoolProperty{"Gready", true, ""},
+	&wid.BoolProperty{"Razak", true, ""},
+	&wid.BoolProperty{"Taihan", true, ""},
+	&wid.BoolProperty{"Shai", true, ""},
+	&wid.BoolProperty{"Morgana", true, ""},
+	&wid.BoolProperty{"Volta", true, ""},
+	&wid.BoolProperty{"Edmond", true, ""},
+	&wid.BoolProperty{"Kellan", true, ""},
+	&wid.BoolProperty{"Kiyan", true, ""},
 }
 
 var dungeons = createDungeonsFromSavedFile()
@@ -44,7 +57,7 @@ func main() {
 	if err != nil {
 		log.Fatal("Unable to create window:", err)
 	}
-	win.SetDefaultSize(700, 550)
+	win.SetDefaultSize(800, 550)
 	win.SetTitle("SWAP")
 	win.SetPosition(gtk.WIN_POS_CENTER)
 	win.Connect("destroy", func() {
@@ -145,7 +158,7 @@ func main() {
 
 	btnRun.Connect("clicked", func() {
 		devices, _ := initDevices()
-		runCommand, err := createRunCommand(dungeonsTabs, appWidgets)
+		runCommand, err := createRunCommand(dungeonsTabs, appWidgets, getRivalStates())
 		if err != nil {
 			wid.HandleError(win, errorsChan, winChan, err)
 		} else {
@@ -182,6 +195,22 @@ func main() {
 	gtk.Main()
 }
 
+func getRivalStates() string {
+	res := ""
+	for _, dungeon := range dungeons {
+		if dungeon.Name == "Rivals" {
+			for _, prop := range dungeon.Rivals {
+				if prop.Value {
+					res += "1"
+				} else {
+					res += "0"
+				}
+			}
+		}
+	}
+	return res
+}
+
 func stopRun() {
 	disconnectDevice(wid.CurrentRunSerial)
 	time.Sleep(1 * time.Second)
@@ -192,12 +221,15 @@ func disconnectDevice(serial string) {
 	adb.ExecAdbCommand("disconnect", serial)
 }
 
-func createRunCommand(dungeonsTabs *gtk.Notebook, appWidgets wid.AppWidgets) ([]string, error) { //AverageDungeonTime | RunCount | Refill | Difficulty | StartStage
+func createRunCommand(dungeonsTabs *gtk.Notebook, appWidgets wid.AppWidgets, rivalsStates string) ([]string, error) { //AverageDungeonTime | RunCount | Refill | Difficulty | StartStage
 	swautoplayPackage := "com.example.swautoplay.test/androidx.test.runner.AndroidJUnitRunner"
 	args := []string{"instrument", "-w", "-r"}
 	var params = []func(int, wid.AppWidgets) (string, string, error){getAverageDungeonTime, getRunCount, getRefill, getDifficulty, getStartStage, getHoH, getLevel, getRunPosition, getDungeonName}
 	index := dungeonsTabs.GetCurrentPage()
 	dungeon := dungeons[index]
+	if dungeon.Name == "Rivals" {
+		params = []func(int, wid.AppWidgets) (string, string, error){getRunPosition, getDungeonName}
+	}
 	for i, fun := range params {
 		if i >= len(dungeon.ConcernedParam) {
 			name, value, err := fun(index, appWidgets)
@@ -217,6 +249,7 @@ func createRunCommand(dungeonsTabs *gtk.Notebook, appWidgets wid.AppWidgets) ([]
 			}
 		}
 	}
+	args = append(args, "-e", "RivalsState", rivalsStates)
 	args = append(args, swautoplayPackage)
 	return args, nil
 }
@@ -374,15 +407,15 @@ func createDungeon(name string, concernedParams []bool, adt string, runCount str
 		&wid.BoolProperty{"Normal", false, "Normal"},
 		&wid.BoolProperty{"Hard", false, "Hard"},
 	}
-	if (wid.IsRiftDungeon(name)) {
+	if wid.IsRiftDungeon(name) {
 		zone := "Forest"
-		if (name == "Ellunia") {
+		if name == "Ellunia" {
 			zone = "Sanctuary"
-		} else if (name == "Lumel") {
+		} else if name == "Lumel" {
 			zone = "Cliff"
 		}
 		difficulty_props = []*wid.BoolProperty{
-			&wid.BoolProperty{"Vestige" , false, "Vestige"},
+			&wid.BoolProperty{"Vestige", false, "Vestige"},
 			&wid.BoolProperty{zone, false, "Rune"},
 		}
 	}
@@ -407,6 +440,7 @@ func createDungeon(name string, concernedParams []bool, adt string, runCount str
 				&wid.BoolProperty{"No", false, "false"},
 			},
 		},
+		rivalsState,
 	}
 	if name != "ToA" && !wid.IsRiftDungeon(name) {
 		dungeon.BoolProps[1] = append(dungeon.BoolProps[1], hell)

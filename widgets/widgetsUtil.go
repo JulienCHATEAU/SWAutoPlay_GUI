@@ -1,18 +1,20 @@
-package widgets;
+package widgets
 
 import (
-  "github.com/gotk3/gotk3/gtk"
-  "log"
-  "fmt"
-  "strconv"
+	"fmt"
+	"log"
+	"strconv"
+
+	"github.com/gotk3/gotk3/gtk"
 )
+
 var ScenarioDungeons = []string{"Garen", "Siz", "Kabir", "Ragon", "Telain", "Hydeni", "Tamor", "Vrofagus", "Faimon", "Aiden", "Ferun", "Runar", "Charuka"}
 
 type AppWidgets struct {
 	Adts          []*gtk.Entry
 	RunCounts     []*gtk.Entry
 	StartStages   []*gtk.Entry
-	Level 		  []*gtk.Entry
+	Level         []*gtk.Entry
 	ScenarioNames []*gtk.ComboBoxText
 }
 
@@ -35,9 +37,10 @@ type Dungeon struct {
 	Adt             string
 	RunCount        string
 	StartStage      string
-	Level 			string
+	Level           string
 	ScenarioDungeon int
 	BoolProps       [][]*BoolProperty // Refill | Difficulty | HoH
+	Rivals          []*BoolProperty
 }
 
 func (d *Dungeon) getActiveBoolProps() []string {
@@ -94,7 +97,7 @@ func (dungeon *Dungeon) CreateDungeonContent(count int, appWidgets AppWidgets) (
 	dungeonTitle.SetHExpand(true)
 	contentGrid.Add(dungeonTitle)
 
-	if dungeon.ConcernedParam[0] {
+	if dungeon.ConcernedParam[0] && dungeon.Name != "Rivals" {
 		appWidgets.Adts[count], _ = gtk.EntryNew()
 		appWidgets.Adts[count].SetText(dungeon.Adt)
 		adtGrid, err := CreateGridEntry("Average dungeon time (in seconds) : ", 3, appWidgets.Adts[count])
@@ -104,7 +107,7 @@ func (dungeon *Dungeon) CreateDungeonContent(count int, appWidgets AppWidgets) (
 		contentGrid.Add(adtGrid)
 	}
 
-	if dungeon.ConcernedParam[1] {
+	if dungeon.ConcernedParam[1] && dungeon.Name != "Rivals" {
 		appWidgets.RunCounts[count], _ = gtk.EntryNew()
 		appWidgets.RunCounts[count].SetText(dungeon.RunCount)
 		runCountGrid, err := CreateGridEntry("Run count : ", 2, appWidgets.RunCounts[count])
@@ -114,7 +117,7 @@ func (dungeon *Dungeon) CreateDungeonContent(count int, appWidgets AppWidgets) (
 		contentGrid.Add(runCountGrid)
 	}
 
-	if dungeon.ConcernedParam[2] {
+	if dungeon.ConcernedParam[2] && dungeon.Name != "Rivals" {
 		refillGrid, err := CreateGridBoolBox("Refill energy from : ", dungeon.BoolProps[0])
 		if err != nil {
 			log.Fatal("Unable to Create refillGrid:", err)
@@ -145,12 +148,20 @@ func (dungeon *Dungeon) CreateDungeonContent(count int, appWidgets AppWidgets) (
 		contentGrid.Add(boxGrid)
 	}
 
+	if dungeon.Name == "Rivals" {
+		rivalsGrid, err := CreateGridBoolCheckBox("Rivals to battle : ", dungeon.Rivals)
+		if err != nil {
+			log.Fatal("Unable to Create rivalsGrid:", err)
+		}
+		contentGrid.Add(rivalsGrid)
+	}
+
 	if dungeon.ConcernedParam[3] {
 		difficultyStr := " difficulty : "
-		if (IsRiftDungeon(dungeon.Name)) {
+		if IsRiftDungeon(dungeon.Name) {
 			difficultyStr = " dungeon : "
 		}
-		difficultyGrid, err := CreateGridBoolBox(dungeon.Name + difficultyStr, dungeon.BoolProps[1])
+		difficultyGrid, err := CreateGridBoolBox(dungeon.Name+difficultyStr, dungeon.BoolProps[1])
 		if err != nil {
 			log.Fatal("Unable to Create difficultyGrid:", err)
 		}
@@ -161,18 +172,18 @@ func (dungeon *Dungeon) CreateDungeonContent(count int, appWidgets AppWidgets) (
 		appWidgets.StartStages[count], _ = gtk.EntryNew()
 		appWidgets.StartStages[count].SetText(dungeon.StartStage)
 		label := "Start dungeon to stage n° : "
-		if (IsRiftDungeon(dungeon.Name)) {
+		if IsRiftDungeon(dungeon.Name) {
 			firstMonster := "Griffon"
 			secondMonster := "Inugami"
 			thirdMonster := "Bear"
-			if (dungeon.Name == "Ellunia") {
+			if dungeon.Name == "Ellunia" {
 				firstMonster = "Fairy"
 				secondMonster = "Pixie"
-			} else if (dungeon.Name == "Lumel") {
+			} else if dungeon.Name == "Lumel" {
 				firstMonster = "Werewolf"
 				secondMonster = "Martial cat"
 			}
-			label = "Monster (0 : "+firstMonster+", 1 : "+secondMonster+", 2 : "+thirdMonster+") :"
+			label = "Monster (0 : " + firstMonster + ", 1 : " + secondMonster + ", 2 : " + thirdMonster + ") :"
 		}
 		startStageGrid, err := CreateGridEntry(label, 3, appWidgets.StartStages[count])
 		if err != nil {
@@ -212,7 +223,7 @@ func CreateGridEntry(labelValue string, maxWidthChar int, entry *gtk.Entry) (*gt
 		return nil, err
 	}
 	entryGrid.SetOrientation(gtk.ORIENTATION_HORIZONTAL)
-  	entryGrid.SetMarginTop(10)
+	entryGrid.SetMarginTop(10)
 	entryLabel, err := CreateSubTitleLabel(labelValue)
 	if err != nil {
 		return nil, err
@@ -231,7 +242,7 @@ func CreateGridBoolBox(labelValue string, props []*BoolProperty) (*gtk.Grid, err
 	if err != nil {
 		return nil, err
 	}
-  runPosGrid.SetMarginTop(10)
+	runPosGrid.SetMarginTop(10)
 	runPosGrid.SetMarginBottom(10)
 	runPosGrid.SetOrientation(gtk.ORIENTATION_HORIZONTAL)
 	runPosLabel, err := CreateSubTitleLabel(labelValue)
@@ -248,6 +259,37 @@ func CreateGridBoolBox(labelValue string, props []*BoolProperty) (*gtk.Grid, err
 		} else {
 			radio[index], _ = gtk.RadioButtonNewWithLabelFromWidget(radio[0], prop.Name)
 		}
+		radio[index].SetMarginEnd(5)
+		p := prop
+		r := radio[index]
+		radio[index].SetActive(p.Value)
+		radio[index].Connect("toggled", func() {
+			updateParam(p, r.GetActive())
+		})
+		box.PackStart(radio[index], true, true, 0)
+	}
+	runPosGrid.Add(box)
+	return runPosGrid, err
+}
+
+func CreateGridBoolCheckBox(labelValue string, props []*BoolProperty) (*gtk.Grid, error) {
+	runPosGrid, err := gtk.GridNew()
+	if err != nil {
+		return nil, err
+	}
+	runPosGrid.SetMarginTop(10)
+	runPosGrid.SetMarginBottom(10)
+	runPosGrid.SetOrientation(gtk.ORIENTATION_HORIZONTAL)
+	runPosLabel, err := CreateSubTitleLabel(labelValue)
+	if err != nil {
+		return nil, err
+	}
+	runPosGrid.Add(runPosLabel)
+	box, _ := gtk.BoxNew(gtk.ORIENTATION_HORIZONTAL, 0)
+	var radio []*gtk.CheckButton
+	radio = make([]*gtk.CheckButton, len(props))
+	for index, prop := range props {
+		radio[index], _ = gtk.CheckButtonNewWithLabel(prop.Name)
 		radio[index].SetMarginEnd(5)
 		p := prop
 		r := radio[index]

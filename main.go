@@ -13,13 +13,14 @@ import (
 	"github.com/gotk3/gotk3/gtk"
 )
 
-const DUNGEON_COUNT = 12
+const DUNGEON_COUNT = 13
 
 var startTestPosProps = []*wid.BoolProperty{
 	&wid.BoolProperty{"Phone home page", true, "Home"},
 	&wid.BoolProperty{"Island", false, "Island"},
 	&wid.BoolProperty{"ToA stages page", false, "ToA"},
 	&wid.BoolProperty{"Rivals page", false, "Rivals"},
+	&wid.BoolProperty{"Raid lobby page", false, "ToA"},
 }
 
 var rivalsState = []*wid.BoolProperty{
@@ -125,6 +126,12 @@ func main() {
 	buttonGrid.SetMarginEnd(10)
 	buttonGrid.SetMarginStart(10)
 
+	btnTcpip, err := gtk.ButtonNewWithLabel("Tcpip connection")
+	if err != nil {
+		log.Fatal("Unable to create btnTcpip:", err)
+	}
+	btnTcpip.SetHExpand(true)
+	btnTcpip.SetMarginEnd(10)
 	btnRun, err := gtk.ButtonNewWithLabel("Run this dungeon")
 	if err != nil {
 		log.Fatal("Unable to create btnRun:", err)
@@ -156,6 +163,10 @@ func main() {
 		gtk.Main()
 	})
 
+	btnTcpip.Connect("clicked", func() {
+		adb.ExecAdbCommand("tcpip", "5555")
+	})
+
 	btnRun.Connect("clicked", func() {
 		devices, _ := initDevices()
 		runCommand, err := createRunCommand(dungeonsTabs, appWidgets, getRivalStates())
@@ -184,6 +195,7 @@ func main() {
 		// gtk.Main()
 	})
 	btnStop.SetVisible(false)
+	buttonGrid.Add(btnTcpip)
 	buttonGrid.Add(btnRun)
 	buttonGrid.Add(btnConnect)
 	buttonGrid.Add(btnStop)

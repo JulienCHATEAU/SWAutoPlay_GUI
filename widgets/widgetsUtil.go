@@ -117,7 +117,7 @@ func (dungeon *Dungeon) CreateDungeonContent(count int, appWidgets AppWidgets) (
 		contentGrid.Add(runCountGrid)
 	}
 
-	if dungeon.ConcernedParam[2] && dungeon.Name != "Rivals" {
+	if dungeon.ConcernedParam[2] && dungeon.Name != "Rivals" && dungeon.Name != "Raid" {
 		refillGrid, err := CreateGridBoolBox("Refill energy from : ", dungeon.BoolProps[0])
 		if err != nil {
 			log.Fatal("Unable to Create refillGrid:", err)
@@ -169,27 +169,37 @@ func (dungeon *Dungeon) CreateDungeonContent(count int, appWidgets AppWidgets) (
 	}
 
 	if dungeon.ConcernedParam[4] {
-		appWidgets.StartStages[count], _ = gtk.EntryNew()
-		appWidgets.StartStages[count].SetText(dungeon.StartStage)
-		label := "Start dungeon to stage n° : "
-		if IsRiftDungeon(dungeon.Name) {
-			firstMonster := "Griffon"
-			secondMonster := "Inugami"
-			thirdMonster := "Bear"
-			if dungeon.Name == "Ellunia" {
-				firstMonster = "Fairy"
-				secondMonster = "Pixie"
-			} else if dungeon.Name == "Lumel" {
-				firstMonster = "Werewolf"
-				secondMonster = "Martial cat"
+		if dungeon.Name == "Raid" {
+			appWidgets.StartStages[count], _ = gtk.EntryNew()
+			appWidgets.StartStages[count].SetText(dungeon.StartStage)
+			startStageGrid, err := CreateGridEntry("Lobby team position (left: 0, middle: 1, right: 2)", 3, appWidgets.StartStages[count])
+			if err != nil {
+				log.Fatal("Unable to Create startStageGrid:", err)
 			}
-			label = "Monster (0 : " + firstMonster + ", 1 : " + secondMonster + ", 2 : " + thirdMonster + ") :"
+			contentGrid.Add(startStageGrid)
+		} else {
+			appWidgets.StartStages[count], _ = gtk.EntryNew()
+			appWidgets.StartStages[count].SetText(dungeon.StartStage)
+			label := "Start dungeon to stage n° : "
+			if IsRiftDungeon(dungeon.Name) {
+				firstMonster := "Griffon"
+				secondMonster := "Inugami"
+				thirdMonster := "Bear"
+				if dungeon.Name == "Ellunia" {
+					firstMonster = "Fairy"
+					secondMonster = "Pixie"
+				} else if dungeon.Name == "Lumel" {
+					firstMonster = "Werewolf"
+					secondMonster = "Martial cat"
+				}
+				label = "Monster (0 : " + firstMonster + ", 1 : " + secondMonster + ", 2 : " + thirdMonster + ") :"
+			}
+			startStageGrid, err := CreateGridEntry(label, 3, appWidgets.StartStages[count])
+			if err != nil {
+				log.Fatal("Unable to Create startStageGrid:", err)
+			}
+			contentGrid.Add(startStageGrid)
 		}
-		startStageGrid, err := CreateGridEntry(label, 3, appWidgets.StartStages[count])
-		if err != nil {
-			log.Fatal("Unable to Create startStageGrid:", err)
-		}
-		contentGrid.Add(startStageGrid)
 	}
 
 	if dungeon.ConcernedParam[5] {
